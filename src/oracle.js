@@ -29,7 +29,14 @@ export async function submitToOracle(wallet, submissionData) {
     const minRequired = 0.01;
 
     if (balanceSOL < minRequired) {
-      console.warn(`Insufficient funds for oracle submission (${balanceSOL.toFixed(4)} SOL < ${minRequired} SOL), creating mock signature`);
+      console.warn(`\n⚠️  Insufficient funds for oracle submission`);
+      console.warn(`   Current balance: ${balanceSOL.toFixed(4)} SOL`);
+      console.warn(`   Required: ${minRequired} SOL`);
+      console.warn(`   Wallet: ${wallet.publicKey.toBase58()}`);
+      console.warn(`\n💡 To get devnet SOL:`);
+      console.warn(`   1. solana airdrop 1 ${wallet.publicKey.toBase58()} --url devnet`);
+      console.warn(`   2. Or visit: https://faucet.solana.com/`);
+      console.warn(`\n📝 Using mock signature for demo purposes...\n`);
       return 'MOCK_ORACLE_TX_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
     }
 

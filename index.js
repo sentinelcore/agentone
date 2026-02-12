@@ -168,12 +168,26 @@ async function main(options) {
     console.log(chalk.blue(`🤖 Agent Name: ${agentName}`));
 
     // Get location
-    const locationSpinner = ora('Detecting location...').start();
     let location = options.location;
     if (!location) {
-      location = await getLocation();
+      const locationSpinner = ora('Detecting location via IP...').start();
+      const detectedLocation = await getLocation();
+      locationSpinner.succeed(chalk.green(`📍 Detected Location: ${detectedLocation}`));
+
+      // Ask user to confirm or override
+      console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
+      const customLocation = await question('Enter custom location (or press Enter to use detected): ');
+
+      location = customLocation.trim() || detectedLocation;
+
+      if (customLocation.trim()) {
+        console.log(chalk.green(`✓ Using custom location: ${location}`));
+      } else {
+        console.log(chalk.green(`✓ Using detected location: ${location}`));
+      }
+    } else {
+      console.log(chalk.green(`📍 Location: ${location}`));
     }
-    locationSpinner.succeed(chalk.green(`📍 Location: ${location}`));
 
     // Initialize points system
     initializePoints(wallet.publicKey.toBase58());
@@ -291,21 +305,36 @@ async function runQueryCycle(wallet, agentName, location, options) {
       if (process.env.DASHBOARD_API_URL) {
         try {
           const dashboardSpinner = ora('Submitting to dashboard API...').start();
-          const response = await fetch(process.env.DASHBOARD_API_URL, {
+          const apiUrl = process.env.DASHBOARD_API_URL;
+
+          console.log(chalk.blue(`\n🌐 Dashboard API URL: ${apiUrl}`));
+          console.log(chalk.gray(`📤 Submitting data: ${JSON.stringify(submissionData, null, 2)}`));
+
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submissionData)
           });
 
+          const responseText = await response.text();
+          console.log(chalk.blue(`📥 API Response Status: ${response.status}`));
+          console.log(chalk.gray(`📥 API Response Body: ${responseText}`));
+
           if (response.ok) {
-            dashboardSpinner.succeed(chalk.green('Dashboard submission successful'));
+            dashboardSpinner.succeed(chalk.green('✅ Dashboard submission successful!'));
+            console.log(chalk.green(`🎉 Data should now appear at: https://decharge-scout.vercel.app/agentone`));
           } else {
-            dashboardSpinner.warn(chalk.yellow(`Dashboard API returned: ${response.status}`));
+            dashboardSpinner.warn(chalk.yellow(`⚠️  Dashboard API returned: ${response.status}`));
+            console.log(chalk.yellow(`Response: ${responseText}`));
           }
         } catch (error) {
           // Silent fail for dashboard - it's optional
-          console.log(chalk.gray(`ℹ️  Dashboard API not available (${error.message})`));
+          console.log(chalk.red(`❌ Dashboard API error: ${error.message}`));
+          console.log(chalk.gray(`Stack: ${error.stack}`));
         }
+      } else {
+        console.log(chalk.yellow(`\n⚠️  DASHBOARD_API_URL not set - skipping dashboard submission`));
+        console.log(chalk.gray(`   To enable: Set DASHBOARD_API_URL in .env file`));
       }
 
       // Award points

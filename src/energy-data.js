@@ -16,7 +16,9 @@ const EIA_BASE_URL = 'https://api.eia.gov/v2';
  * Fetch energy data from EIA API (ERCOT)
  */
 export async function fetchEnergyData() {
-  if (!EIA_API_KEY || EIA_API_KEY === 'your_eia_api_key_here') {
+  if (!EIA_API_KEY || EIA_API_KEY === 'your_eia_api_key_here' || EIA_API_KEY.length < 20) {
+    console.warn('⚠️  EIA_API_KEY not configured or invalid');
+    console.warn('   Get a free key: https://www.eia.gov/opendata/register.php');
     throw new Error('EIA_API_KEY not configured');
   }
 
