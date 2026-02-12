@@ -2,6 +2,18 @@
 
 AI-powered energy grid data scout with Solana blockchain integration. This CLI tool scouts public energy grid data, performs optimizations to find the cheapest EV charging windows, and submits anonymized results to a mock DeCharge oracle on Solana.
 
+## 🚀 Quick Install
+
+**One-liner installation:**
+
+```bash
+git clone -b claude/solana-energy-scout-cli-d7vYT https://github.com/sentinelcore/agentone.git decharge-scout && cd decharge-scout && node setup.js
+```
+
+Then run: `decharge-scout`
+
+[See more installation options →](ONE_COMMAND_INSTALL.md)
+
 ## Features
 
 - **Real-time Energy Data**: Fetches live energy pricing and demand data from EIA and Electricity Maps APIs
