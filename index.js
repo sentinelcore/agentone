@@ -174,16 +174,32 @@ async function main(options) {
       const detectedLocation = await getLocation();
       locationSpinner.succeed(chalk.green(`📍 Detected Location: ${detectedLocation}`));
 
-      // Ask user to confirm or override
+      // Ask user to confirm or override (with timeout)
       console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
-      const customLocation = await question('Enter custom location (or press Enter to use detected): ');
+      console.log(chalk.gray('(Press Enter to use detected location, or type custom location)'));
 
-      location = customLocation.trim() || detectedLocation;
+      try {
+        // Create a promise that auto-resolves after 10 seconds
+        const timeoutPromise = new Promise((resolve) => {
+          setTimeout(() => {
+            console.log(chalk.yellow('\n⏱️  No input received, using detected location...'));
+            resolve('');
+          }, 10000);
+        });
 
-      if (customLocation.trim()) {
-        console.log(chalk.green(`✓ Using custom location: ${location}`));
-      } else {
-        console.log(chalk.green(`✓ Using detected location: ${location}`));
+        const questionPromise = question('Enter custom location (or press Enter): ');
+
+        const customLocation = await Promise.race([questionPromise, timeoutPromise]);
+        location = customLocation.trim() || detectedLocation;
+
+        if (customLocation.trim()) {
+          console.log(chalk.green(`✓ Using custom location: ${location}`));
+        } else {
+          console.log(chalk.green(`✓ Using detected location: ${location}`));
+        }
+      } catch (error) {
+        console.log(chalk.yellow(`\n⚠️  Prompt error, using detected location: ${detectedLocation}`));
+        location = detectedLocation;
       }
     } else {
       console.log(chalk.green(`📍 Location: ${location}`));
