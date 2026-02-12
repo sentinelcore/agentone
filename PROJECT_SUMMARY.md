@@ -198,34 +198,40 @@ decharge-scout/
 
 ## Quick Start Commands
 
+### One-Command Setup (Recommended)
+
+```bash
+# 1. Run interactive setup
+node setup.js
+
+# 2. Run the scout (auto-configures everything)
+decharge-scout
+
+# Or with options
+decharge-scout --agent-name="MyAgent" --premium
+```
+
+### Manual Setup (Alternative)
+
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Quick setup (interactive)
-./setup.sh
-
-# 3. Configure API key
+# 2. Configure API key
 nano .env  # Add EIA_API_KEY
 
-# 4. Create wallet
+# 3. Create wallet
 solana-keygen new --outfile ./wallet.json
 
-# 5. Fund wallet
+# 4. Fund wallet
 solana airdrop 1 $(solana-keygen pubkey ./wallet.json) --url devnet
 
-# 6. Run scout
-node index.js --wallet=./wallet.json
+# 5. Run scout (wallet optional, auto-creates if missing)
+node index.js
 
-# 7. With custom agent name
-node index.js --wallet=./wallet.json --agent-name="MyAgent"
-
-# 8. With premium features
-node index.js --wallet=./wallet.json --premium
-
-# 9. Install globally
+# 6. Install globally
 npm install -g .
-decharge-scout --wallet=./wallet.json
+decharge-scout
 ```
 
 ## Configuration Options

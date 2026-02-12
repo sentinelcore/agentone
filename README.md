@@ -21,83 +21,95 @@ AI-powered energy grid data scout with Solana blockchain integration. This CLI t
 
 ## Installation
 
-### 1. Clone or download this project
+### One-Command Setup (Recommended)
+
+The easiest way to get started:
 
 ```bash
 cd decharge-scout
+node setup.js
 ```
 
-### 2. Install dependencies
+This interactive script will:
+- ✅ Install all dependencies
+- ✅ Generate a wallet (or use existing)
+- ✅ Request devnet SOL airdrop
+- ✅ Configure your .env file
+- ✅ Install globally (optional)
+
+**That's it!** After setup completes, just run:
+
+```bash
+decharge-scout
+```
+
+### Manual Installation (Alternative)
+
+If you prefer manual setup:
+
+#### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Configure environment variables
-
-Copy `.env.example` to `.env` and fill in your values:
+#### 2. Configure environment
 
 ```bash
 cp .env.example .env
+# Edit .env and add your EIA_API_KEY from https://www.eia.gov/opendata/register.php
 ```
 
-Edit `.env`:
-
-```env
-# Required: Get from https://www.eia.gov/opendata/register.php
-EIA_API_KEY=your_actual_api_key_here
-
-# Optional: Customize these if needed
-SOLANA_NETWORK=devnet
-SOLANA_RPC_URL=https://api.devnet.solana.com
-STAKE_AMOUNT=0.01
-PREMIUM_PRICE=0.001
-```
-
-### 4. Create a Solana wallet (if you don't have one)
+#### 3. Create wallet
 
 ```bash
 solana-keygen new --outfile ./wallet.json
 ```
 
-### 5. Fund your wallet with devnet SOL
+#### 4. Fund wallet
 
 ```bash
 solana airdrop 1 $(solana-keygen pubkey ./wallet.json) --url devnet
 ```
 
-### 6. Install globally (optional)
+#### 5. Install globally (optional)
 
 ```bash
 npm install -g .
 ```
 
-Or use directly with `node index.js`
-
 ## Usage
 
-### Basic Usage
+### Basic Usage (Auto-configuration)
+
+After running `node setup.js`, simply:
 
 ```bash
-decharge-scout --wallet=./wallet.json
+decharge-scout
 ```
 
-### With Custom Agent Name
+The CLI will automatically:
+- Use `./wallet.json` if no wallet specified
+- Create a new wallet if none exists
+- Prompt for EIA API key if missing
+- Auto-detect your location
+
+### With Custom Options
 
 ```bash
-decharge-scout --wallet=./wallet.json --agent-name="MyEnergyAgent"
+decharge-scout --wallet=./my-wallet.json --agent-name="MyEnergyAgent"
 ```
 
 ### With Manual Location
 
 ```bash
-decharge-scout --wallet=./wallet.json --agent-name="MyAgent" --location="Austin, TX"
+decharge-scout --agent-name="MyAgent" --location="Austin, TX"
 ```
 
 ### With Premium Features
 
 ```bash
-decharge-scout --wallet=./wallet.json --premium
+decharge-scout --premium
 ```
 
 ### All Options
@@ -106,7 +118,7 @@ decharge-scout --wallet=./wallet.json --premium
 decharge-scout --help
 
 Options:
-  -w, --wallet <path>       Path to Solana wallet JSON keypair file (required)
+  -w, --wallet <path>       Path to Solana wallet JSON keypair file (default: ./wallet.json)
   -a, --agent-name <name>   Custom agent name (default: auto-generated)
   -l, --location <location> Manual location override (default: auto-detect via IP)
   -p, --premium            Enable premium features (x402 micropayments)

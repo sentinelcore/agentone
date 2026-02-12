@@ -20,10 +20,12 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import dotenv from 'dotenv';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { createInterface } from 'readline';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { Keypair } from '@solana/web3.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,11 +45,20 @@ const __dirname = dirname(__filename);
 // Configuration
 const STAKE_AMOUNT = parseFloat(process.env.STAKE_AMOUNT || '0.01');
 const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_WALLET_PATH = path.join(__dirname, 'wallet.json');
 
 // Global state
 let isRunning = true;
 let totalRuns = 0;
 let stakeTransactionSignature = null;
+
+// Readline interface for prompts
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+const question = (prompt) => new Promise((resolve) => rl.question(prompt, resolve));
 
 /**
  * Generate random agent name
@@ -58,33 +69,98 @@ function generateAgentName() {
 }
 
 /**
+ * Auto-create wallet if missing
+ */
+async function ensureWallet(walletPath) {
+  if (existsSync(walletPath)) {
+    return walletPath;
+  }
+
+  console.log(chalk.yellow(`\n⚠️  No wallet found at ${walletPath}`));
+  const answer = await question('Create a new wallet? (Y/n): ');
+
+  if (answer.toLowerCase() === 'n') {
+    console.log(chalk.blue('\nYou can create a wallet manually:'));
+    console.log(chalk.gray('  solana-keygen new --outfile ./wallet.json'));
+    console.log(chalk.gray('  Or run: node setup.js\n'));
+    process.exit(1);
+  }
+
+  console.log(chalk.blue('Generating new wallet...'));
+
+  const keypair = Keypair.generate();
+  const secretKey = Array.from(keypair.secretKey);
+
+  writeFileSync(walletPath, JSON.stringify(secretKey));
+
+  console.log(chalk.green(`✓ Wallet created: ${keypair.publicKey.toBase58()}`));
+  console.log(chalk.yellow('⚠️  IMPORTANT: Backup this wallet file!'));
+  console.log(chalk.blue(`\nYou need devnet SOL. Get it from:`));
+  console.log(chalk.gray('  solana airdrop 1 ' + keypair.publicKey.toBase58() + ' --url devnet'));
+  console.log(chalk.gray('  Or visit: https://faucet.solana.com/\n'));
+
+  await question('Press Enter after funding your wallet...');
+
+  return walletPath;
+}
+
+/**
+ * Auto-configure .env if needed
+ */
+async function ensureEnvironment() {
+  const envPath = path.join(__dirname, '.env');
+
+  // Create .env from example if missing
+  if (!existsSync(envPath)) {
+    const examplePath = path.join(__dirname, '.env.example');
+    if (existsSync(examplePath)) {
+      console.log(chalk.yellow('⚠️  .env file not found, creating from template...'));
+      const example = readFileSync(examplePath, 'utf-8');
+      writeFileSync(envPath, example);
+      console.log(chalk.green('✓ .env file created'));
+    }
+  }
+
+  // Check for EIA API key
+  if (!process.env.EIA_API_KEY || process.env.EIA_API_KEY === 'your_eia_api_key_here') {
+    console.log(chalk.yellow('\n⚠️  EIA_API_KEY not configured'));
+    console.log(chalk.blue('Get a free API key from: https://www.eia.gov/opendata/register.php'));
+
+    const answer = await question('Enter your EIA API key (or press Enter to skip): ');
+
+    if (answer.trim()) {
+      // Update .env file
+      let envContent = readFileSync(envPath, 'utf-8');
+      envContent = envContent.replace(/EIA_API_KEY=.*/g, `EIA_API_KEY=${answer.trim()}`);
+      writeFileSync(envPath, envContent);
+
+      // Update process.env
+      process.env.EIA_API_KEY = answer.trim();
+
+      console.log(chalk.green('✓ API key saved to .env'));
+    } else {
+      console.log(chalk.yellow('⚠️  Running without EIA API key (will use fallback data sources)'));
+    }
+  }
+}
+
+/**
  * Main CLI function
  */
 async function main(options) {
   console.log(chalk.cyan.bold('\n🔋 DeCharge Scout - Energy Grid Data Scout\n'));
 
-  // Validate wallet path
-  if (!options.wallet) {
-    console.error(chalk.red('❌ Error: --wallet path is required'));
-    process.exit(1);
-  }
-
-  if (!existsSync(options.wallet)) {
-    console.error(chalk.red(`❌ Error: Wallet file not found at ${options.wallet}`));
-    process.exit(1);
-  }
-
-  // Validate EIA API key
-  if (!process.env.EIA_API_KEY || process.env.EIA_API_KEY === 'your_eia_api_key_here') {
-    console.error(chalk.red('❌ Error: EIA_API_KEY not set in .env file'));
-    console.log(chalk.yellow('Get your API key from: https://www.eia.gov/opendata/register.php'));
-    process.exit(1);
-  }
-
   try {
+    // Auto-configure environment
+    await ensureEnvironment();
+
+    // Auto-handle wallet
+    const walletPath = options.wallet || DEFAULT_WALLET_PATH;
+    const confirmedWalletPath = await ensureWallet(walletPath);
+
     // Load wallet
     const spinner = ora('Loading wallet...').start();
-    const wallet = await loadWallet(options.wallet);
+    const wallet = await loadWallet(confirmedWalletPath);
     spinner.succeed(chalk.green(`Wallet loaded: ${wallet.publicKey.toBase58()}`));
 
     // Set agent name
@@ -132,6 +208,7 @@ async function main(options) {
       console.log(chalk.magenta(`\n⭐ Final Points: ${finalPoints}`));
       console.log(chalk.cyan(`📊 Total Runs: ${totalRuns}\n`));
 
+      rl.close();
       process.exit(0);
     });
 
@@ -141,6 +218,7 @@ async function main(options) {
   } catch (error) {
     console.error(chalk.red(`\n❌ Error: ${error.message}`));
     console.error(chalk.gray(error.stack));
+    rl.close();
     process.exit(1);
   }
 }
@@ -287,7 +365,7 @@ program
   .name('decharge-scout')
   .description('AI-powered energy grid data scout with Solana integration')
   .version('1.0.0')
-  .requiredOption('-w, --wallet <path>', 'Path to Solana wallet JSON keypair file')
+  .option('-w, --wallet <path>', 'Path to Solana wallet JSON keypair file (default: ./wallet.json)')
   .option('-a, --agent-name <name>', 'Custom agent name (default: auto-generated)')
   .option('-l, --location <location>', 'Manual location override (default: auto-detect via IP)')
   .option('-p, --premium', 'Enable premium features (x402 micropayments)')
