@@ -21,6 +21,18 @@ export async function submitToOracle(wallet, submissionData) {
   try {
     const connection = getConnection();
 
+    // Check wallet balance first
+    const balance = await connection.getBalance(wallet.publicKey);
+    const balanceSOL = balance / 1000000000; // Convert lamports to SOL
+
+    // Minimum balance needed: 0.01 SOL for transaction + fees
+    const minRequired = 0.01;
+
+    if (balanceSOL < minRequired) {
+      console.warn(`Insufficient funds for oracle submission (${balanceSOL.toFixed(4)} SOL < ${minRequired} SOL), creating mock signature`);
+      return 'MOCK_ORACLE_TX_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
+    }
+
     // Anonymize data
     const anonymizedData = anonymizeData(submissionData);
 
@@ -28,34 +40,11 @@ export async function submitToOracle(wallet, submissionData) {
     const dataJSON = JSON.stringify(anonymizedData);
     const dataBuffer = Buffer.from(dataJSON);
 
-    // For demo, we'll send a memo transaction with the data
+    // For demo, we'll send just a memo transaction (no transfer needed)
     // In production, this would call a custom Solana program
-
-    // Create oracle program ID (mock - using a valid pubkey format)
-    const oracleProgramId = new PublicKey('DeCh4rG3orac1e111111111111111111111111111111');
-
-    // Create PDA for storing oracle data (simplified for demo)
-    const [oraclePDA] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from('oracle'),
-        wallet.publicKey.toBuffer(),
-        Buffer.from(Date.now().toString())
-      ],
-      oracleProgramId
-    );
 
     // Create transaction with memo containing our data
     const transaction = new Transaction();
-
-    // Add a small transfer to make it a valid transaction
-    // (In production, this would be a custom program instruction)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: oraclePDA,
-        lamports: 1000 // Minimal amount for demo
-      })
-    );
 
     // Add memo instruction with our data (truncate if needed for tx size limits)
     const MAX_MEMO_SIZE = 566; // Solana memo size limit
@@ -89,7 +78,7 @@ export async function submitToOracle(wallet, submissionData) {
     return signature;
   } catch (error) {
     // If transaction fails (e.g., insufficient funds), create mock signature
-    if (error.message.includes('insufficient')) {
+    if (error.message.includes('insufficient') || error.message.includes('balance')) {
       console.warn('Insufficient funds for oracle submission, creating mock signature');
       return 'MOCK_ORACLE_TX_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
     }

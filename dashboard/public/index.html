@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeCharge Scout - Admin Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .stat-card .value {
+      font-size: 3em;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-card .label {
+      color: #999;
+      margin-top: 5px;
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .section h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 1.8em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f8f9fa;
+      color: #666;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85em;
+      letter-spacing: 0.5px;
+    }
+
+    tr:hover {
+      background: #f8f9fa;
+    }
+
+    .location-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: 500;
+    }
+
+    .price {
+      color: #4caf50;
+      font-weight: 600;
+    }
+
+    .savings {
+      color: #ff9800;
+      font-weight: 600;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .refresh-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .refresh-btn:hover {
+      background: #764ba2;
+    }
+
+    .last-updated {
+      color: #999;
+      font-size: 0.9em;
+      margin-top: 10px;
+    }
+
+    .live-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      background: #4caf50;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .location-card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .location-card h4 {
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .location-card .count {
+      font-size: 2em;
+      font-weight: bold;
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔋 DeCharge Scout</h1>
+      <p>Real-Time Agent Analytics Dashboard</p>
+    </div>
+
+    <div id="error-container"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Active Agents</h3>
+        <div class="value pulse" id="active-agents">-</div>
+        <div class="label"><span class="live-indicator"></span>Live Now</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Total Submissions</h3>
+        <div class="value" id="total-submissions">-</div>
+        <div class="label">Last 24 Hours</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Unique Locations</h3>
+        <div class="value" id="unique-locations">-</div>
+        <div class="label">Worldwide Coverage</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Avg Savings</h3>
+        <div class="value" id="avg-savings">-</div>
+        <div class="label">Cost Reduction</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📍 Agents by Location</h2>
+      <div id="locations-map" class="map-grid"></div>
+    </div>
+
+    <div class="section">
+      <h2>📊 Recent Submissions</h2>
+      <button class="refresh-btn" onclick="loadData()">Refresh Data</button>
+      <div class="last-updated" id="last-updated"></div>
+      <div id="submissions-container"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : '';
+
+    async function loadData() {
+      try {
+        const response = await fetch(`${API_BASE}/api/stats`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Update stats
+        document.getElementById('active-agents').textContent = data.activeAgents || 0;
+        document.getElementById('total-submissions').textContent = data.totalSubmissions || 0;
+        document.getElementById('unique-locations').textContent = data.locations?.length || 0;
+
+        // Calculate average savings
+        const avgSavings = data.recentSubmissions?.length
+          ? (data.recentSubmissions.reduce((sum, s) => sum + parseFloat(s.savings), 0) / data.recentSubmissions.length).toFixed(1)
+          : 0;
+        document.getElementById('avg-savings').textContent = `${avgSavings}%`;
+
+        // Render locations map
+        renderLocationsMap(data.locations || []);
+
+        // Render submissions table
+        renderSubmissionsTable(data.recentSubmissions || []);
+
+        // Update timestamp
+        document.getElementById('last-updated').textContent =
+          `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        // Clear errors
+        document.getElementById('error-container').innerHTML = '';
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('error-container').innerHTML =
+          `<div class="error">⚠️ Error loading data: ${error.message}. Make sure the API is deployed and POSTGRES_URL is configured.</div>`;
+      }
+    }
+
+    function renderLocationsMap(locations) {
+      const container = document.getElementById('locations-map');
+
+      if (locations.length === 0) {
+        container.innerHTML = '<div class="loading">No location data available</div>';
+        return;
+      }
+
+      container.innerHTML = locations.map(loc => `
+        <div class="location-card">
+          <h4>${escapeHtml(loc.location)}</h4>
+          <div class="count">${loc.submissions}</div>
+          <div class="label">submissions</div>
+        </div>
+      `).join('');
+    }
+
+    function renderSubmissionsTable(submissions) {
+      const container = document.getElementById('submissions-container');
+
+      if (submissions.length === 0) {
+        container.innerHTML = '<div class="loading">No submissions yet</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Location</th>
+              <th>Cheapest Window</th>
+              <th>Price</th>
+              <th>Savings</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${submissions.map(s => `
+              <tr>
+                <td><strong>${escapeHtml(s.agent_name)}</strong></td>
+                <td><span class="location-badge">${escapeHtml(s.location)}</span></td>
+                <td>${escapeHtml(s.cheapest_window)}</td>
+                <td class="price">$${parseFloat(s.price).toFixed(4)}/kWh</td>
+                <td class="savings">${parseFloat(s.savings).toFixed(1)}%</td>
+                <td>${new Date(s.created_at).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initial load
+    loadData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>

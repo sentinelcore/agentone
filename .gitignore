@@ -12,6 +12,7 @@ yarn.lock
 *.json
 !package.json
 !tsconfig.json
+!vercel.json
 
 # Points storage
 .decharge-scout/
