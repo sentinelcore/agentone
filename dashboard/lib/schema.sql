@@ -1,5 +1,5 @@
 -- DeCharge Scout Dashboard Database Schema
--- Use this to initialize your Vercel Postgres database
+-- Use this to initialize your Supabase Postgres database
 
 -- Table: agent_heartbeat
 -- Tracks which agents are currently active

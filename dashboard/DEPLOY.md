@@ -70,46 +70,76 @@ zip -r dashboard.zip dashboard/
 # 4. Upload dashboard.zip
 ```
 
-## 🗄️ Database Setup (Required!)
+## 🗄️ Database Setup with Supabase (Required!)
 
-After deploying, set up the database:
+After deploying, set up Supabase:
 
-### Step 1: Create Postgres Database
+### Step 1: Create Supabase Project
 
 ```bash
-# Go to your Vercel project:
-https://vercel.com/dashboard → Your Project
-
-# Click "Storage" tab → "Create Database"
-# Select "Postgres"
-# Name: dechargescout-db
-# Region: Choose closest to you
-# Click "Create"
+# 1. Go to https://supabase.com
+# 2. Click "New Project"
+# 3. Fill in:
+#    - Name: dechargescout
+#    - Database Password: [generate a strong password]
+#    - Region: Choose closest to you
+# 4. Click "Create project"
+# 5. Wait ~2 minutes for provisioning
 ```
 
 ### Step 2: Run Database Schema
 
 ```bash
-# Option A: Via Vercel Dashboard
-# 1. In Postgres dashboard, click "Query" tab
-# 2. Copy contents of dashboard/lib/schema.sql
-# 3. Paste and click "Run Query"
+# 1. In Supabase dashboard, go to:
+#    SQL Editor (left sidebar)
 
-# Option B: Via Vercel CLI
-vercel env pull .env.local
-# Then use any Postgres client with the POSTGRES_URL
+# 2. Click "+ New Query"
+
+# 3. Copy contents of dashboard/lib/schema.sql
+
+# 4. Paste and click "Run" (or Ctrl+Enter)
+
+# You should see: "Success. No rows returned"
 ```
 
-### Step 3: Verify Environment Variables
+### Step 3: Get API Credentials
 
 ```bash
-# Check that POSTGRES_URL is set:
-vercel env ls
+# In Supabase dashboard, go to:
+# Project Settings (gear icon) → API
 
-# Should show:
-# POSTGRES_URL (Production, Preview, Development)
+# Copy these values:
+# - Project URL (e.g., https://xxxxx.supabase.co)
+# - anon/public key (starts with "eyJ...")
+```
 
-# If not, it will be auto-linked when you create the database
+### Step 4: Add to Vercel Environment Variables
+
+```bash
+# Option A: Via Vercel CLI
+vercel env add SUPABASE_URL
+# Paste your Project URL
+
+vercel env add SUPABASE_ANON_KEY
+# Paste your anon/public key
+
+# Option B: Via Vercel Dashboard
+# 1. Go to your project settings
+# 2. Environment Variables
+# 3. Add:
+#    SUPABASE_URL = https://xxxxx.supabase.co
+#    SUPABASE_ANON_KEY = eyJ...
+# 4. Select all environments (Production, Preview, Development)
+# 5. Save
+```
+
+### Step 5: Redeploy
+
+```bash
+# After adding env vars, redeploy:
+vercel --prod
+
+# Or push a commit to trigger auto-deploy
 ```
 
 ## 🔧 Configuration
@@ -184,10 +214,14 @@ your-vercel-project/
 # Check environment variables
 vercel env ls
 
+# Should show:
+# SUPABASE_URL
+# SUPABASE_ANON_KEY
+
 # Pull to local
 vercel env pull
 
-# Should create .env.local with POSTGRES_URL
+# Should create .env.local with both variables
 ```
 
 ### "Module not found"
@@ -213,14 +247,21 @@ vercel logs
 
 ```bash
 # 1. Check database has tables:
-#    Run schema.sql in Vercel Postgres query tab
+#    Go to Supabase → Table Editor
+#    Should see: agent_submissions, agent_heartbeat
 
-# 2. Check CLI is configured:
+# 2. If tables missing, run schema.sql again in SQL Editor
+
+# 3. Check CLI is configured:
 #    .env should have DASHBOARD_API_URL
 
-# 3. Check CLI is sending data:
+# 4. Check CLI is sending data:
 #    npx decharge-scout
 #    Look for: "Dashboard submission successful"
+
+# 5. Check Vercel has env vars:
+#    vercel env ls
+#    Should show SUPABASE_URL and SUPABASE_ANON_KEY
 ```
 
 ## 🔄 Update Existing Deployment
@@ -281,10 +322,12 @@ cd dashboard
 vercel link              # Link to existing project
 vercel --prod           # Deploy to production
 
-# Then in Vercel dashboard:
-# 1. Create Postgres database
-# 2. Run schema.sql
-# 3. Done!
+# Then:
+# 1. Create Supabase project
+# 2. Run schema.sql in Supabase SQL Editor
+# 3. Add SUPABASE_URL and SUPABASE_ANON_KEY to Vercel env vars
+# 4. Redeploy: vercel --prod
+# 5. Done!
 ```
 
 That's it! Your dashboard will be live on your existing Vercel deployment! 🚀

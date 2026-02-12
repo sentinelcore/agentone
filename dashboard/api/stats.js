@@ -2,10 +2,10 @@
  * Vercel API Endpoint - Agent Statistics
  *
  * GET /api/stats
- * Returns real-time statistics about active agents
+ * Returns real-time statistics about active agents from Supabase
  */
 
-import { createClient } from '@vercel/postgres';
+import { createClient } from '@supabase/supabase-js';
 
 export const config = {
   runtime: 'edge',
@@ -34,55 +34,64 @@ export default async function handler(req) {
   }
 
   try {
-    const client = createClient();
-    await client.connect();
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    // Calculate time thresholds
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     // Get active agents (last seen within 30 minutes)
-    const activeAgentsResult = await client.sql`
-      SELECT COUNT(DISTINCT agent_name) as count
-      FROM agent_heartbeat
-      WHERE last_seen > NOW() - INTERVAL '30 minutes'
-    `;
+    const { data: activeAgents, error: activeError } = await supabase
+      .from('agent_heartbeat')
+      .select('agent_name', { count: 'exact', head: false })
+      .gt('last_seen', thirtyMinutesAgo);
 
-    // Get total submissions today
-    const submissionsResult = await client.sql`
-      SELECT COUNT(*) as count
-      FROM agent_submissions
-      WHERE created_at > NOW() - INTERVAL '24 hours'
-    `;
+    if (activeError) throw activeError;
 
-    // Get unique locations
-    const locationsResult = await client.sql`
-      SELECT DISTINCT location, COUNT(*) as submissions
-      FROM agent_submissions
-      WHERE created_at > NOW() - INTERVAL '24 hours'
-      GROUP BY location
-      ORDER BY submissions DESC
-    `;
+    // Get total submissions in last 24 hours
+    const { count: submissionCount, error: submissionError } = await supabase
+      .from('agent_submissions')
+      .select('*', { count: 'exact', head: true })
+      .gt('created_at', twentyFourHoursAgo);
+
+    if (submissionError) throw submissionError;
+
+    // Get unique locations with submission counts
+    const { data: locationsData, error: locationsError } = await supabase
+      .from('agent_submissions')
+      .select('location')
+      .gt('created_at', twentyFourHoursAgo);
+
+    if (locationsError) throw locationsError;
+
+    // Aggregate locations manually
+    const locationMap = {};
+    locationsData.forEach(row => {
+      locationMap[row.location] = (locationMap[row.location] || 0) + 1;
+    });
+    const locations = Object.entries(locationMap)
+      .map(([location, submissions]) => ({ location, submissions }))
+      .sort((a, b) => b.submissions - a.submissions);
 
     // Get recent submissions
-    const recentResult = await client.sql`
-      SELECT
-        agent_name,
-        location,
-        timestamp,
-        cheapest_window,
-        price,
-        savings,
-        created_at
-      FROM agent_submissions
-      ORDER BY created_at DESC
-      LIMIT 20
-    `;
+    const { data: recentSubmissions, error: recentError } = await supabase
+      .from('agent_submissions')
+      .select('agent_name, location, timestamp, cheapest_window, price, savings, created_at')
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    await client.end();
+    if (recentError) throw recentError;
 
     return new Response(
       JSON.stringify({
-        activeAgents: parseInt(activeAgentsResult.rows[0].count),
-        totalSubmissions: parseInt(submissionsResult.rows[0].count),
-        locations: locationsResult.rows,
-        recentSubmissions: recentResult.rows,
+        activeAgents: new Set(activeAgents.map(a => a.agent_name)).size,
+        totalSubmissions: submissionCount || 0,
+        locations: locations,
+        recentSubmissions: recentSubmissions,
         timestamp: new Date().toISOString(),
       }),
       { status: 200, headers }

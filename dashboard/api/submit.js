@@ -2,10 +2,10 @@
  * Vercel API Endpoint - Agent Data Submission
  *
  * POST /api/submit
- * Receives agent data submissions and stores them in the database
+ * Receives agent data submissions and stores them in Supabase
  */
 
-import { createClient } from '@vercel/postgres';
+import { createClient } from '@supabase/supabase-js';
 
 export const config = {
   runtime: 'edge',
@@ -44,42 +44,40 @@ export default async function handler(req) {
       );
     }
 
-    // Connect to database
-    const client = createClient();
-    await client.connect();
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
 
     // Insert submission
-    await client.sql`
-      INSERT INTO agent_submissions (
-        agent_name,
-        location,
-        timestamp,
-        cheapest_window,
-        price,
-        savings,
-        data_points,
-        created_at
-      ) VALUES (
-        ${data.agent_name},
-        ${data.location},
-        ${new Date(data.timestamp)},
-        ${data.results.cheapest_window},
-        ${data.results.price},
-        ${data.results.savings},
-        ${data.results.data_points},
-        NOW()
-      )
-    `;
+    const { error: submissionError } = await supabase
+      .from('agent_submissions')
+      .insert({
+        agent_name: data.agent_name,
+        location: data.location,
+        timestamp: new Date(data.timestamp).toISOString(),
+        cheapest_window: data.results.cheapest_window,
+        price: data.results.price,
+        savings: data.results.savings,
+        data_points: data.results.data_points,
+      });
 
-    // Update agent heartbeat
-    await client.sql`
-      INSERT INTO agent_heartbeat (agent_name, location, last_seen)
-      VALUES (${data.agent_name}, ${data.location}, NOW())
-      ON CONFLICT (agent_name)
-      DO UPDATE SET location = ${data.location}, last_seen = NOW()
-    `;
+    if (submissionError) throw submissionError;
 
-    await client.end();
+    // Update agent heartbeat (upsert)
+    const { error: heartbeatError } = await supabase
+      .from('agent_heartbeat')
+      .upsert(
+        {
+          agent_name: data.agent_name,
+          location: data.location,
+          last_seen: new Date().toISOString(),
+        },
+        { onConflict: 'agent_name' }
+      );
+
+    if (heartbeatError) throw heartbeatError;
 
     return new Response(
       JSON.stringify({
