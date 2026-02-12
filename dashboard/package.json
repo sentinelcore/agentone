@@ -1,5 +1,5 @@
 {
-  "name": "decharge-scout-dashboard",
+  "name": "dechargescout",
   "version": "1.0.0",
   "description": "Real-time analytics dashboard for DeCharge Scout agents",
   "type": "module",
