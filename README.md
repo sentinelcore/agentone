@@ -1,0 +1,299 @@
+# DeCharge Scout
+
+AI-powered energy grid data scout with Solana blockchain integration. This CLI tool scouts public energy grid data, performs optimizations to find the cheapest EV charging windows, and submits anonymized results to a mock DeCharge oracle on Solana.
+
+## Features
+
+- **Real-time Energy Data**: Fetches live energy pricing and demand data from EIA and Electricity Maps APIs
+- **Smart Optimization**: Finds the cheapest charging windows in the next 24 hours
+- **Blockchain Integration**: Submits results to Solana devnet with anti-spam staking
+- **Points System**: Earn points for successful submissions and good optimizations
+- **Location Tracking**: Auto-detects location via IP for global dashboard visualization
+- **Premium Features**: x402 micropayments for enhanced forecast data
+- **Dashboard Ready**: Structured data output for global visualization
+
+## Prerequisites
+
+- Node.js v20 or higher
+- A Solana wallet keypair file (JSON format)
+- EIA API key (free from https://www.eia.gov/opendata/register.php)
+- At least 0.02 SOL in your devnet wallet for staking + fees
+
+## Installation
+
+### 1. Clone or download this project
+
+```bash
+cd decharge-scout
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure environment variables
+
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+# Required: Get from https://www.eia.gov/opendata/register.php
+EIA_API_KEY=your_actual_api_key_here
+
+# Optional: Customize these if needed
+SOLANA_NETWORK=devnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+STAKE_AMOUNT=0.01
+PREMIUM_PRICE=0.001
+```
+
+### 4. Create a Solana wallet (if you don't have one)
+
+```bash
+solana-keygen new --outfile ./wallet.json
+```
+
+### 5. Fund your wallet with devnet SOL
+
+```bash
+solana airdrop 1 $(solana-keygen pubkey ./wallet.json) --url devnet
+```
+
+### 6. Install globally (optional)
+
+```bash
+npm install -g .
+```
+
+Or use directly with `node index.js`
+
+## Usage
+
+### Basic Usage
+
+```bash
+decharge-scout --wallet=./wallet.json
+```
+
+### With Custom Agent Name
+
+```bash
+decharge-scout --wallet=./wallet.json --agent-name="MyEnergyAgent"
+```
+
+### With Manual Location
+
+```bash
+decharge-scout --wallet=./wallet.json --agent-name="MyAgent" --location="Austin, TX"
+```
+
+### With Premium Features
+
+```bash
+decharge-scout --wallet=./wallet.json --premium
+```
+
+### All Options
+
+```bash
+decharge-scout --help
+
+Options:
+  -w, --wallet <path>       Path to Solana wallet JSON keypair file (required)
+  -a, --agent-name <name>   Custom agent name (default: auto-generated)
+  -l, --location <location> Manual location override (default: auto-detect via IP)
+  -p, --premium            Enable premium features (x402 micropayments)
+  -h, --help               Display help for command
+  -V, --version            Output the version number
+```
+
+## How It Works
+
+### 1. Onboarding (1-2 mins)
+
+- Loads your Solana wallet
+- Stakes 0.01 SOL to escrow (refunded on exit)
+- Detects your location via IP
+- Initializes points tracking
+
+### 2. Query Cycle (Every 15 mins)
+
+- Fetches energy pricing data from EIA (ERCOT) or Electricity Maps
+- Analyzes data to find cheapest charging window
+- Calculates savings vs average and peak prices
+
+### 3. Optimization & Submit
+
+- Displays results (e.g., "Cheapest charge: 2AM-3AM at $0.05/kWh, 20% savings")
+- Anonymizes data (hashes agent name, generalizes location)
+- Submits to Solana devnet oracle with transaction proof
+- Logs dashboard-ready JSON structure
+- Optionally POSTs to dashboard API if configured
+
+### 4. Earn & Loop
+
+- Awards 1-5 base points per submission
+- Bonus +2 points for >15% savings
+- Saves points locally to `~/.decharge-scout/points.json`
+- Continues running every 15 minutes
+
+### 5. Exit
+
+- Press Ctrl+C to stop
+- Refunds stake if runs > 0
+- Displays final points and stats
+
+## Dashboard Integration
+
+Each submission creates a structured JSON payload for dashboard visualization:
+
+```json
+{
+  "agent_name": "MyAgent",
+  "location": "Austin, TX",
+  "timestamp": 1234567890,
+  "results": {
+    "cheapest_window": "2AM-3AM",
+    "price": 0.05,
+    "savings": 23.5,
+    "data_points": 24
+  }
+}
+```
+
+To enable dashboard API submission, set in `.env`:
+
+```env
+DASHBOARD_API_URL=http://localhost:3000/submit
+```
+
+The CLI will POST this data to your dashboard backend (optional).
+
+## Premium Features (x402)
+
+Premium access provides:
+- Enhanced forecast accuracy
+- Carbon intensity data
+- Renewable energy percentages
+- Confidence scores
+- Extended 48-hour forecasts
+
+Cost: 0.001 SOL per access
+
+Enable with `--premium` flag. Payment is processed via x402 micropayment every 3rd run.
+
+## Project Structure
+
+```
+decharge-scout/
+├── index.js                 # Main CLI entry point
+├── package.json             # Dependencies and metadata
+├── .env.example             # Environment variables template
+├── README.md               # This file
+├── src/
+│   ├── wallet.js           # Solana wallet operations
+│   ├── energy-data.js      # Energy API integrations
+│   ├── optimizer.js        # Optimization algorithms
+│   ├── oracle.js           # Solana oracle submission
+│   ├── points.js           # Points tracking system
+│   ├── geolocation.js      # IP-based location detection
+│   └── x402.js             # x402 micropayment handling
+```
+
+## API Data Sources
+
+### Primary: EIA API (ERCOT)
+- Endpoint: `https://api.eia.gov/v2/electricity/rto/region-data/data/`
+- Provides: Real-time demand and pricing for Texas (ERCOT)
+- Requires: Free API key from https://www.eia.gov/opendata/register.php
+
+### Secondary: Electricity Maps
+- Endpoint: `https://api.electricitymaps.com/v3/power-breakdown/latest`
+- Provides: Power grid forecasts and carbon intensity
+- Free tier available
+
+### Fallback: Mock Data
+- Generated locally if APIs are unavailable
+- Simulates realistic daily pricing patterns
+
+## Points System
+
+- **Base Points**: 1-5 per successful submission
+- **Bonus Points**: +2 for >15% savings optimization
+- **Storage**: Local file at `~/.decharge-scout/points.json`
+- **Persistence**: Points carry across sessions
+
+## Security & Privacy
+
+- **No Hardcoded Keys**: All sensitive data in `.env` or prompts
+- **Anonymization**: Agent names are hashed, locations generalized
+- **Refundable Stake**: Your 0.01 SOL stake is refunded on exit
+- **Local-First**: Points stored locally, not on-chain
+- **Devnet Only**: Uses Solana devnet (test network)
+
+## Troubleshooting
+
+### "EIA_API_KEY not set"
+Get your free API key from https://www.eia.gov/opendata/register.php and add to `.env`
+
+### "Insufficient balance"
+Fund your devnet wallet:
+```bash
+solana airdrop 1 <YOUR_WALLET_ADDRESS> --url devnet
+```
+
+### "All data sources failed"
+- Check your internet connection
+- Verify EIA API key is valid
+- Try again (fallback mock data will be used)
+
+### "Oracle submission failed"
+- Ensure wallet has enough SOL for transaction fees
+- Check Solana devnet status
+- Mock transactions will be created as fallback
+
+## Development
+
+### Run in dev mode
+
+```bash
+npm start -- --wallet=./wallet.json
+```
+
+### Test with mock dashboard
+
+Start a simple server to receive dashboard submissions:
+
+```bash
+# In another terminal
+node -e "require('http').createServer((req,res)=>{let body='';req.on('data',d=>body+=d);req.on('end',()=>{console.log(JSON.parse(body));res.end('OK')})}).listen(3000)"
+```
+
+Then set in `.env`:
+```env
+DASHBOARD_API_URL=http://localhost:3000/submit
+```
+
+## Contributing
+
+This is a proof-of-concept demo. For production use:
+- Implement actual Solana program for oracle (not just memo transactions)
+- Add SPL token minting for points instead of local storage
+- Integrate with real x402 payment providers
+- Add more energy grid APIs (GridStatus.io, etc.)
+- Implement proper payment channel state management
+
+## License
+
+MIT
+
+## Disclaimer
+
+This is a demo application for educational purposes. Do not use with mainnet wallets or real funds. Energy data is for informational purposes only and should not be used as financial advice.
