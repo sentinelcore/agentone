@@ -17,10 +17,22 @@
     "energy",
     "cli",
     "decharge",
-    "blockchain"
+    "blockchain",
+    "ev-charging",
+    "energy-optimization",
+    "ercot",
+    "web3"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sentinelcore/agentone.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sentinelcore/agentone/issues"
+  },
+  "homepage": "https://github.com/sentinelcore/agentone#readme",
   "dependencies": {
     "@solana/web3.js": "^1.95.8",
     "@solana/spl-token": "^0.4.9",

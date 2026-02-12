@@ -42,15 +42,33 @@ After completion, run: `cd ~/decharge-scout && decharge-scout`
 
 ---
 
-## 📦 Option 3: NPX (If Published to npm)
+## 📦 Option 3: NPM Install (Shortest - After Publishing)
 
-If the package were published to npm, you could run:
+**After publishing to npm**, users can install with:
+
+```bash
+npm install -g decharge-scout
+```
+
+Or run directly without installing:
 
 ```bash
 npx decharge-scout
 ```
 
-**Note:** Currently not published to npm. Use Option 1 or 2 instead.
+**To publish to npm**, run:
+
+```bash
+./publish-npm.sh
+```
+
+This will guide you through:
+1. Logging in to npm
+2. Bumping version
+3. Publishing package
+4. Creating git tags
+
+After publishing, users can use the shortest install commands!
 
 ---
 

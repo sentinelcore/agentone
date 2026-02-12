@@ -1,0 +1,48 @@
+# NPM Ignore - Files not to publish to npm registry
+
+# Git
+.git/
+.gitignore
+
+# Development files
+*.md
+!README.md
+INSTALLATION.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+ONE_COMMAND_INSTALL.md
+SHORTEST_INSTALL.md
+
+# Scripts
+setup.sh
+install.sh
+publish-npm.sh
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test wallets (security)
+wallet.json
+test-wallet.json
+*.json.backup
+
+# Local config
+.decharge-scout/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+.nyc_output/
