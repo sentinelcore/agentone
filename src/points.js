@@ -4,7 +4,7 @@
  * Manages user points locally and optionally via SPL token
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
 import path from 'path';
 
@@ -80,8 +80,7 @@ function loadPoints() {
   try {
     // Ensure directory exists
     if (!existsSync(POINTS_DIR)) {
-      const fs = await import('fs');
-      fs.mkdirSync(POINTS_DIR, { recursive: true });
+      mkdirSync(POINTS_DIR, { recursive: true });
     }
 
     // Load points file if exists
@@ -103,9 +102,8 @@ function loadPoints() {
 export function savePoints() {
   try {
     // Ensure directory exists
-    const fs = await import('fs');
     if (!existsSync(POINTS_DIR)) {
-      fs.mkdirSync(POINTS_DIR, { recursive: true });
+      mkdirSync(POINTS_DIR, { recursive: true });
     }
 
     // Write points to file
