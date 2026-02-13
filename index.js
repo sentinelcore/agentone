@@ -20,6 +20,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import dotenv from 'dotenv';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { createInterface } from 'readline';
 import path from 'path';
 import { fileURLToPath } from 'url';
