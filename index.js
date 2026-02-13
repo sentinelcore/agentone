@@ -175,15 +175,28 @@ async function main(options) {
       console.log(chalk.gray('You have 30 seconds to respond...'));
 
       try {
+        let timeoutId;
+        let hasResolved = false;
+
         // Create a promise that auto-resolves after 30 seconds
         const timeoutPromise = new Promise((resolve) => {
-          setTimeout(() => {
-            console.log(chalk.yellow('\n⏱️  Timeout - using detected location...'));
-            resolve('__TIMEOUT__');
+          timeoutId = setTimeout(() => {
+            if (!hasResolved) {
+              hasResolved = true;
+              console.log(chalk.yellow('\n⏱️  Timeout - using detected location...'));
+              resolve('__TIMEOUT__');
+            }
           }, 30000);
         });
 
-        const questionPromise = question('Enter custom location (or press Enter): ');
+        const questionPromise = question('Enter custom location (or press Enter): ').then(answer => {
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(timeoutId);
+            return answer;
+          }
+          return '__TIMEOUT__'; // If timeout already occurred, ignore this answer
+        });
 
         const customLocation = await Promise.race([questionPromise, timeoutPromise]);
 
@@ -246,7 +259,7 @@ async function main(options) {
     });
 
     // Main query cycle
-    await runQueryCycle(wallet, agentName, location, options);
+    await runQueryCycle(walletAddress, agentName, location, options);
 
   } catch (error) {
     console.error(chalk.red(`\n❌ Error: ${error.message}`));
