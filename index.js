@@ -347,7 +347,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...submissionData,
-            wallet: walletAddress,
+            wallet: wallet, // wallet parameter from runQueryCycle
             run_number: totalRuns
           })
         });
@@ -373,8 +373,8 @@ async function runQueryCycle(wallet, agentName, location, options) {
       const bonusPoints = savings > 15 ? 2 : 0; // Bonus for good savings
       const totalPointsEarned = basePoints + bonusPoints;
 
-      awardPoints(walletAddress, totalPointsEarned);
-      const currentPoints = getPoints(walletAddress);
+      awardPoints(wallet, totalPointsEarned);
+      const currentPoints = getPoints(wallet);
 
       console.log(chalk.magenta(`\n⭐ Earned ${totalPointsEarned} points! (${basePoints} base${bonusPoints > 0 ? ` + ${bonusPoints} bonus` : ''})`));
       console.log(chalk.magenta(`⭐ Total Points: ${currentPoints}`));
@@ -383,7 +383,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
       if (options.premium && totalRuns % 3 === 0) {
         console.log(chalk.yellow('\n🔒 Premium Feature Available!'));
         try {
-          const premiumData = await purchasePremiumData(walletAddress);
+          const premiumData = await purchasePremiumData(wallet);
           console.log(chalk.green(`Premium forecast data: ${JSON.stringify(premiumData)}`));
         } catch (error) {
           console.log(chalk.red(`Premium purchase failed: ${error.message}`));
