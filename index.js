@@ -493,8 +493,9 @@ async function runQueryCycle(wallet, agentName, location, options) {
           reasons: cheapestHourData?.reasons || []
         },
 
-        // Special notes from user
-        notes: specialNotes.trim() || null
+        // User contributions
+        notes: specialNotes.trim() || null,
+        alpha_contribution: pendingAlphaContribution || null
       };
 
       // Submit to oracle
