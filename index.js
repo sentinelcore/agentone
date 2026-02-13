@@ -267,7 +267,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
 
       // Fetch weather data and generate smart pricing simulation
       const weatherSpinner = ora('Fetching real-time weather forecast...').start();
-      let weatherData, energyData, countryCode;
+      let weatherData, energyData, countryCode, insights;
 
       try {
         // Get real weather forecast from Open-Meteo (FREE!)
@@ -281,7 +281,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
         pricingSpinner.succeed(chalk.green(`✓ Generated ${energyData.length} hours of smart pricing data`));
 
         // Show pricing insights
-        const insights = getPricingInsights(energyData, countryCode);
+        insights = getPricingInsights(energyData, countryCode);
         console.log(chalk.blue(`\n💡 Smart Simulation Insights:`));
         console.log(chalk.gray(`   Region: ${insights.region}`));
         console.log(chalk.gray(`   Price range: $${insights.minPrice}-$${insights.maxPrice}/kWh (${insights.priceRange}% variation)`));
