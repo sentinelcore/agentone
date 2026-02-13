@@ -85,42 +85,57 @@ async function ensureEnvironment() {
       console.log(chalk.green(`✓ .env file created at ${envPath}`));
     } else {
       // Create a basic .env file if no example exists
-      const basicEnv = `# EIA API Key (Required - Get from https://www.eia.gov/opendata/register.php)
+      const basicEnv = `# Energy Data API Keys
+# Choose ONE based on your location:
+# - EIA (FREE, US-only): Get from https://www.eia.gov/opendata/register.php
+# - Electricity Maps (GLOBAL, paid): Get from https://www.electricitymaps.com/
 EIA_API_KEY=your_eia_api_key_here
+ELECTRICITY_MAPS_API_KEY=your_electricity_maps_api_key_here
 
 # Solana Configuration
 SOLANA_NETWORK=devnet
 SOLANA_RPC_URL=https://api.devnet.solana.com
+
+# Stake Amount (in SOL)
+STAKE_AMOUNT=0.01
 `;
       writeFileSync(envPath, basicEnv);
       console.log(chalk.green(`✓ .env file created at ${envPath}`));
     }
   }
 
-  // Check for EIA API key
-  if (!process.env.EIA_API_KEY || process.env.EIA_API_KEY === 'your_eia_api_key_here') {
-    console.log(chalk.yellow('\n⚠️  EIA_API_KEY not configured'));
-    console.log(chalk.blue('\n📝 How to get a FREE EIA API key:'));
-    console.log(chalk.gray('  1. Visit: https://www.eia.gov/opendata/register.php'));
-    console.log(chalk.gray('  2. Fill out the registration form'));
-    console.log(chalk.gray('  3. Check your email and verify your email address'));
-    console.log(chalk.gray('  4. Your API key will be sent to your email'));
-    console.log(chalk.gray('  5. Copy the API key and paste it below\n'));
+  // Check for energy data API keys
+  const hasEIA = process.env.EIA_API_KEY && process.env.EIA_API_KEY !== 'your_eia_api_key_here';
+  const hasElectricityMaps = process.env.ELECTRICITY_MAPS_API_KEY && process.env.ELECTRICITY_MAPS_API_KEY !== 'your_electricity_maps_api_key_here';
 
-    const answer = await question('Enter your EIA API key (or press Enter to skip): ');
+  if (!hasEIA && !hasElectricityMaps) {
+    console.log(chalk.yellow('\n⚠️  No energy data API keys configured'));
+    console.log(chalk.blue('\n📝 Choose an API based on your location:\n'));
+    console.log(chalk.cyan('  1. EIA API (FREE, US-only)'));
+    console.log(chalk.gray('     - Best for: United States locations'));
+    console.log(chalk.gray('     - Get key: https://www.eia.gov/opendata/register.php\n'));
+    console.log(chalk.cyan('  2. Electricity Maps (PAID, GLOBAL)'));
+    console.log(chalk.gray('     - Best for: International locations (India, EU, Australia, etc.)'));
+    console.log(chalk.gray('     - Get key: https://www.electricitymaps.com/\n'));
+    console.log(chalk.gray('  Press Enter to skip and use mock data (for testing)\n'));
+
+    const answer = await question('Enter API key (or press Enter to skip): ');
 
     if (answer.trim()) {
+      // Determine which API key based on length/format
+      const keyType = answer.length > 30 ? 'EIA_API_KEY' : 'ELECTRICITY_MAPS_API_KEY';
+
       // Update .env file
       let envContent = readFileSync(envPath, 'utf-8');
-      envContent = envContent.replace(/EIA_API_KEY=.*/g, `EIA_API_KEY=${answer.trim()}`);
+      envContent = envContent.replace(new RegExp(`${keyType}=.*`, 'g'), `${keyType}=${answer.trim()}`);
       writeFileSync(envPath, envContent);
 
       // Update process.env
-      process.env.EIA_API_KEY = answer.trim();
+      process.env[keyType] = answer.trim();
 
-      console.log(chalk.green('✓ API key saved to .env'));
+      console.log(chalk.green(`✓ ${keyType} saved to .env`));
     } else {
-      console.log(chalk.yellow('⚠️  Running without EIA API key (will use fallback data sources)'));
+      console.log(chalk.yellow('⚠️  Running without API key (will use mock data)'));
     }
   }
 }
@@ -182,49 +197,19 @@ async function main(options) {
       const detectedLocation = await getLocation();
       locationSpinner.succeed(chalk.green(`📍 Detected Location: ${detectedLocation}`));
 
-      // Ask user to confirm or override (with timeout)
+      // Ask user to confirm or override (no timeout - wait for input)
       console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
-      console.log(chalk.gray('(Press Enter to use detected location, or type custom location)'));
-      console.log(chalk.gray('You have 60 seconds to respond...'));
+      console.log(chalk.gray('(Press Enter to use detected location, or type a custom location like "Dallas,TX,USA")'));
 
       try {
-        let timeoutId;
-        let hasResolved = false;
+        const customLocation = await question('Enter location (or press Enter for auto-detected): ');
 
-        // Create a promise that auto-resolves after 60 seconds
-        const timeoutPromise = new Promise((resolve) => {
-          timeoutId = setTimeout(() => {
-            if (!hasResolved) {
-              hasResolved = true;
-              console.log(chalk.yellow('\n⏱️  Timeout - using detected location...'));
-              resolve('__TIMEOUT__');
-            }
-          }, 60000); // 60 seconds for npx readline delay
-        });
-
-        const questionPromise = question('Enter custom location (or press Enter): ').then(answer => {
-          if (!hasResolved) {
-            hasResolved = true;
-            clearTimeout(timeoutId);
-            return answer;
-          }
-          return '__TIMEOUT__'; // If timeout already occurred, ignore this answer
-        });
-
-        const customLocation = await Promise.race([questionPromise, timeoutPromise]);
-
-        // If timeout occurred, use detected location
-        if (customLocation === '__TIMEOUT__') {
-          location = detectedLocation;
-          console.log(chalk.green(`✓ Using detected location: ${location}`));
+        // Use custom location if provided, otherwise use detected
+        location = customLocation.trim() || detectedLocation;
+        if (customLocation.trim()) {
+          console.log(chalk.green(`✓ Using custom location: ${location}`));
         } else {
-          // Use custom location if provided, otherwise use detected
-          location = customLocation.trim() || detectedLocation;
-          if (customLocation.trim()) {
-            console.log(chalk.green(`✓ Using custom location: ${location}`));
-          } else {
-            console.log(chalk.green(`✓ Using detected location: ${location}`));
-          }
+          console.log(chalk.green(`✓ Using detected location: ${location}`));
         }
       } catch (error) {
         console.log(chalk.yellow(`\n⚠️  Prompt error, using detected location: ${detectedLocation}`));
@@ -305,7 +290,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
         dataSpinner.warn(chalk.yellow(`EIA API failed, trying Electricity Maps...`));
 
         try {
-          energyData = await fetchElectricityMapsData();
+          energyData = await fetchElectricityMapsData(location);
           dataSpinner.succeed(chalk.green(`Fetched forecast data from Electricity Maps`));
         } catch (fallbackError) {
           dataSpinner.fail(chalk.red('All data sources failed'));

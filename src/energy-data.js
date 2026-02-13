@@ -18,7 +18,9 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const EIA_API_KEY = process.env.EIA_API_KEY;
+const ELECTRICITY_MAPS_API_KEY = process.env.ELECTRICITY_MAPS_API_KEY;
 const EIA_BASE_URL = 'https://api.eia.gov/v2';
+const ELECTRICITY_MAPS_BASE_URL = 'https://api.electricitymaps.com/v3';
 
 /**
  * Map location to EIA grid region codes
@@ -43,6 +45,57 @@ function getGridRegionForLocation(location) {
 
   // Default to ERCOT if unknown
   return 'ERCT';
+}
+
+/**
+ * Map location to Electricity Maps zone code
+ * Reference: https://api.electricitymaps.com/v3/zones
+ */
+function getElectricityMapsZone(location) {
+  const locationLower = location.toLowerCase();
+
+  // USA zones
+  if (locationLower.includes('texas') || locationLower.includes('tx') || locationLower.includes('dallas') || locationLower.includes('houston')) {
+    return 'US-TEX-ERCO';
+  } else if (locationLower.includes('california') || locationLower.includes('ca')) {
+    return 'US-CAL-CISO';
+  } else if (locationLower.includes('new york') || locationLower.includes('ny')) {
+    return 'US-NY-NYIS';
+  } else if (locationLower.includes('new england') || locationLower.includes('massachusetts')) {
+    return 'US-NE-ISNE';
+  }
+
+  // India zones
+  if (locationLower.includes('india') || locationLower.includes('in')) {
+    if (locationLower.includes('delhi')) return 'IN-DL';
+    if (locationLower.includes('mumbai') || locationLower.includes('maharashtra')) return 'IN-MH';
+    if (locationLower.includes('bangalore') || locationLower.includes('karnataka')) return 'IN-KA';
+    if (locationLower.includes('hyderabad') || locationLower.includes('telangana') || locationLower.includes('ts')) return 'IN-TG';
+    if (locationLower.includes('chennai') || locationLower.includes('tamil nadu')) return 'IN-TN';
+    return 'IN-DL'; // Default to Delhi
+  }
+
+  // Europe
+  if (locationLower.includes('uk') || locationLower.includes('united kingdom') || locationLower.includes('britain')) {
+    return 'GB';
+  }
+  if (locationLower.includes('germany') || locationLower.includes('de')) return 'DE';
+  if (locationLower.includes('france') || locationLower.includes('fr')) return 'FR';
+  if (locationLower.includes('spain') || locationLower.includes('es')) return 'ES';
+  if (locationLower.includes('italy') || locationLower.includes('it')) return 'IT';
+  if (locationLower.includes('poland') || locationLower.includes('pl')) return 'PL';
+  if (locationLower.includes('netherlands') || locationLower.includes('nl')) return 'NL';
+
+  // Australia
+  if (locationLower.includes('australia') || locationLower.includes('au')) {
+    if (locationLower.includes('nsw') || locationLower.includes('sydney')) return 'AUS-NSW';
+    if (locationLower.includes('vic') || locationLower.includes('melbourne')) return 'AUS-VIC';
+    if (locationLower.includes('qld') || locationLower.includes('queensland')) return 'AUS-QLD';
+    return 'AUS-NSW';
+  }
+
+  // Default to US-TEX-ERCO if unknown
+  return 'US-TEX-ERCO';
 }
 
 /**
@@ -130,20 +183,33 @@ export async function fetchEnergyData(location = 'Texas, USA') {
 /**
  * Fetch forecast data from Electricity Maps API
  */
-export async function fetchElectricityMapsData() {
+export async function fetchElectricityMapsData(location = 'Texas, USA') {
   try {
-    const url = 'https://api.electricitymaps.com/v3/power-breakdown/latest?zone=US-TEX-ERCO';
+    const zone = getElectricityMapsZone(location);
+    console.log(`🗺️  Location: ${location} → Electricity Maps Zone: ${zone}`);
 
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    // Use carbon intensity forecast endpoint for pricing data
+    const url = `${ELECTRICITY_MAPS_BASE_URL}/carbon-intensity/forecast?zone=${zone}`;
+
+    const headers = {
+      'Accept': 'application/json'
+    };
+
+    // Add auth token if available
+    if (ELECTRICITY_MAPS_API_KEY && ELECTRICITY_MAPS_API_KEY !== 'your_electricity_maps_api_key_here') {
+      headers['auth-token'] = ELECTRICITY_MAPS_API_KEY;
+      const keyPreview = `${ELECTRICITY_MAPS_API_KEY.substring(0, 6)}...${ELECTRICITY_MAPS_API_KEY.substring(ELECTRICITY_MAPS_API_KEY.length - 4)}`;
+      console.log(`📡 Using Electricity Maps API key: ${keyPreview}`);
+    } else {
+      console.log('⚠️  No Electricity Maps API key - using free tier (limited)');
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
       // If auth required or rate limited, generate mock data
       if (response.status === 401 || response.status === 429) {
-        console.log('Electricity Maps requires auth, using mock forecast data');
+        console.log('Electricity Maps requires auth or rate limited, using mock forecast data');
         return generateMockForecastData();
       }
       throw new Error(`Electricity Maps API error: ${response.status}`);

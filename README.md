@@ -28,7 +28,9 @@ Then run: `decharge-scout`
 
 - Node.js v20 or higher
 - A Solana wallet keypair file (JSON format)
-- EIA API key (free from https://www.eia.gov/opendata/register.php)
+- **Energy Data API Key** (choose one based on your location):
+  - **EIA API** (FREE, US-only): Get from https://www.eia.gov/opendata/register.php
+  - **Electricity Maps** (PAID, GLOBAL): Get from https://www.electricitymaps.com/ (for India, EU, Australia, etc.)
 - At least 0.02 SOL in your devnet wallet for staking + fees
 
 ## Installation
@@ -233,19 +235,29 @@ decharge-scout/
 
 ## API Data Sources
 
-### Primary: EIA API (ERCOT)
-- Endpoint: `https://api.eia.gov/v2/electricity/rto/region-data/data/`
-- Provides: Real-time demand and pricing for Texas (ERCOT)
-- Requires: Free API key from https://www.eia.gov/opendata/register.php
+### Option 1: EIA API (US-only, FREE)
+- **Coverage**: United States only (ERCOT, CAISO, NYISO, PJM, MISO, ISNE)
+- **Endpoint**: `https://api.eia.gov/v2/electricity/rto/region-data/data/`
+- **Provides**: Real-time demand and pricing for US grid regions
+- **Get Key**: FREE at https://www.eia.gov/opendata/register.php
+- **Best for**: US-based users (Texas, California, New York, etc.)
 
-### Secondary: Electricity Maps
-- Endpoint: `https://api.electricitymaps.com/v3/power-breakdown/latest`
-- Provides: Power grid forecasts and carbon intensity
-- Free tier available
+### Option 2: Electricity Maps (GLOBAL, PAID)
+- **Coverage**: Global (India, EU, UK, Australia, US, and more)
+- **Endpoint**: `https://api.electricitymaps.com/v3/carbon-intensity/forecast`
+- **Provides**: Carbon intensity forecasts and grid data for 200+ zones
+- **Get Key**: Paid API at https://www.electricitymaps.com/
+- **Best for**: International users (India, Europe, Australia, etc.)
+- **Zones Supported**:
+  - 🇮🇳 India: IN-DL (Delhi), IN-MH (Mumbai), IN-KA (Bangalore), IN-TG (Hyderabad), IN-TN (Chennai)
+  - 🇺🇸 USA: US-TEX-ERCO, US-CAL-CISO, US-NY-NYIS, US-NE-ISNE
+  - 🇪🇺 Europe: GB (UK), DE (Germany), FR (France), ES (Spain), IT (Italy)
+  - 🇦🇺 Australia: AUS-NSW, AUS-VIC, AUS-QLD
 
 ### Fallback: Mock Data
 - Generated locally if APIs are unavailable
 - Simulates realistic daily pricing patterns
+- Useful for testing without API keys
 
 ## Points System
 
@@ -264,8 +276,17 @@ decharge-scout/
 
 ## Troubleshooting
 
-### "EIA_API_KEY not set"
-Get your free API key from https://www.eia.gov/opendata/register.php and add to `.env`
+### "EIA_API_KEY not configured" or "No energy data API keys configured"
+Choose an API based on your location:
+- **US users**: Get FREE EIA API key from https://www.eia.gov/opendata/register.php
+- **International users**: Get Electricity Maps API key from https://www.electricitymaps.com/
+- **Testing**: Press Enter to skip and use mock data
+
+Add your key to `.env`:
+```
+EIA_API_KEY=your_key_here                    # For US
+ELECTRICITY_MAPS_API_KEY=your_key_here       # For global
+```
 
 ### "Insufficient balance"
 Fund your devnet wallet:
