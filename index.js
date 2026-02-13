@@ -354,17 +354,74 @@ async function runQueryCycle(wallet, agentName, location, options) {
         }
       }
 
-      // Prepare submission data
+      // Ask for special notes before submission (with 10s timeout)
+      console.log(chalk.cyan('\n💬 Add special notes to this submission? (optional)'));
+      console.log(chalk.gray('   Examples: "High AC usage today", "Local festival", "Grid maintenance"\n'));
+      console.log(chalk.gray('   (Will auto-submit in 10 seconds if no input)\n'));
+
+      const specialNotes = await Promise.race([
+        question(chalk.blue('Special notes (or press Enter to skip): ')),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            console.log(chalk.yellow('\n⏱️  Timeout - submitting without notes'));
+            resolve('');
+          }, 10000); // 10 second timeout
+        })
+      ]);
+
+      // Prepare comprehensive submission data
       const submissionData = {
         agent_name: agentName,
         location: location,
         timestamp: Date.now(),
+
+        // Summary results (for quick display)
         results: {
           cheapest_window: cheapestWindow.timeWindow,
           price: cheapestWindow.price,
           savings: savings,
           data_points: energyData.length
-        }
+        },
+
+        // Full weather data
+        weather: {
+          location: weatherData.location,
+          forecast_summary: {
+            hours: weatherData.forecast.length,
+            temp_range: {
+              min: Math.min(...weatherData.forecast.map(f => f.temperature)),
+              max: Math.max(...weatherData.forecast.map(f => f.temperature))
+            },
+            avg_wind: weatherData.forecast.reduce((sum, f) => sum + f.windSpeed, 0) / weatherData.forecast.length,
+            avg_solar: weatherData.forecast.reduce((sum, f) => sum + f.solarRadiation, 0) / weatherData.forecast.length
+          },
+          optimal_hour_conditions: cheapestHourData?.weather || null
+        },
+
+        // Pricing insights
+        pricing: {
+          region: insights.region,
+          base_price: insights.basePrice,
+          price_range: {
+            min: insights.minPrice,
+            max: insights.maxPrice,
+            variation_percent: insights.priceRange
+          },
+          savings_potential: insights.savingsPotential,
+          country_code: countryCode
+        },
+
+        // Optimization details
+        optimization: {
+          cheapest_hour: cheapestWindow.hour,
+          time_window: cheapestWindow.timeWindow,
+          price: cheapestWindow.price,
+          savings_percent: savings,
+          reasons: cheapestHourData?.reasons || []
+        },
+
+        // Special notes from user
+        notes: specialNotes.trim() || null
       };
 
       // Submit to oracle
