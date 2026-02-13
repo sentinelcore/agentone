@@ -47,7 +47,8 @@ const __dirname = dirname(__filename);
 
 // Configuration
 const STAKE_AMOUNT = parseFloat(process.env.STAKE_AMOUNT || '0.01');
-const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const CYCLE_INTERVAL_MINUTES = parseInt(process.env.CYCLE_INTERVAL_MINUTES || '15'); // Default: 15 minutes
+const CYCLE_INTERVAL_MS = CYCLE_INTERVAL_MINUTES * 60 * 1000;
 
 // Global state
 let isRunning = true;
