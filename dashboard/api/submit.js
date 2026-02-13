@@ -65,6 +65,29 @@ export default async function handler(req) {
 
     if (submissionError) throw submissionError;
 
+    // Handle alpha contribution if present
+    if (data.alpha_contribution) {
+      const alpha = data.alpha_contribution;
+      const { error: alphaError } = await supabase
+        .from('alpha_contributions')
+        .insert({
+          agent_name: data.agent_name,
+          location: data.location,
+          contribution_type: alpha.type,
+          start_hour: alpha.startHour,
+          end_hour: alpha.endHour,
+          verified: alpha.verified || false,
+          confidence: alpha.confidence || 0.5,
+          verification_reasons: alpha.verificationReasons || [],
+          timestamp: new Date(data.timestamp).toISOString(),
+        });
+
+      // Don't fail the entire request if alpha submission fails
+      if (alphaError) {
+        console.warn('Alpha contribution failed:', alphaError);
+      }
+    }
+
     // Update agent heartbeat (upsert)
     const { error: heartbeatError } = await supabase
       .from('agent_heartbeat')

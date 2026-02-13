@@ -53,6 +53,7 @@ const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 let isRunning = true;
 let totalRuns = 0;
 let stakeTransactionSignature = null;
+let pendingAlphaContribution = null; // Store alpha contribution for next submission
 
 // Readline interface for prompts
 const rl = createInterface({
@@ -341,14 +342,22 @@ async function runQueryCycle(wallet, agentName, location, options) {
         console.log(chalk.blue(`\n🌐 Dashboard API URL: ${apiUrl}`));
         console.log(chalk.gray(`📤 Submitting data...`));
 
+        const dashboardPayload = {
+          ...submissionData,
+          wallet: wallet, // wallet parameter from runQueryCycle
+          run_number: totalRuns
+        };
+
+        // Include alpha contribution if available
+        if (pendingAlphaContribution) {
+          dashboardPayload.alpha_contribution = pendingAlphaContribution;
+          console.log(chalk.blue(`📊 Including verified alpha contribution (${(pendingAlphaContribution.confidence * 100).toFixed(0)}% confidence)`));
+        }
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...submissionData,
-            wallet: wallet, // wallet parameter from runQueryCycle
-            run_number: totalRuns
-          })
+          body: JSON.stringify(dashboardPayload)
         });
 
         const responseText = await response.text();
@@ -358,6 +367,12 @@ async function runQueryCycle(wallet, agentName, location, options) {
           dashboardSpinner.succeed(chalk.green('✅ Dashboard submission successful!'));
           console.log(chalk.green(`🎉 Data should now appear at: https://decharge-scout.vercel.app/agentone`));
           console.log(chalk.gray(`Response: ${responseText}`));
+
+          // Clear pending alpha contribution after successful submission
+          if (pendingAlphaContribution) {
+            console.log(chalk.green(`   ✓ Alpha contribution synced to dashboard`));
+            pendingAlphaContribution = null;
+          }
         } else {
           dashboardSpinner.warn(chalk.yellow(`⚠️  Dashboard API returned: ${response.status}`));
           console.log(chalk.yellow(`Response: ${responseText}`));
@@ -419,6 +434,17 @@ async function runQueryCycle(wallet, agentName, location, options) {
 
             // Save contribution with verification status
             const contribution = saveAlphaContribution(parsed, agentName, location, verification);
+
+            // Store for dashboard submission
+            pendingAlphaContribution = {
+              type: parsed.type,
+              startHour: parsed.startHour,
+              endHour: parsed.endHour,
+              location: parsed.location,
+              verified: verification.verified,
+              confidence: verification.confidence,
+              verificationReasons: verification.reasons
+            };
 
             // Calculate bonus (higher for verified contributions)
             const alphaBonus = calculateAlphaBonus(parsed, verification);
