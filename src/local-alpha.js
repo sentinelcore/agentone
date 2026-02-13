@@ -130,7 +130,7 @@ export function parseAlphaContribution(input, location) {
 /**
  * Save local alpha contribution
  */
-export function saveAlphaContribution(contribution, agentId, location) {
+export function saveAlphaContribution(contribution, agentId, location, verificationResult = null) {
   const data = loadAlphaData();
 
   const alphaEntry = {
@@ -138,7 +138,9 @@ export function saveAlphaContribution(contribution, agentId, location) {
     location,
     contribution,
     timestamp: new Date().toISOString(),
-    verified: false // Could be verified by comparing with actual data later
+    verified: verificationResult ? verificationResult.verified : false,
+    confidence: verificationResult ? verificationResult.confidence : 0.5,
+    verificationReasons: verificationResult ? verificationResult.reasons : []
   };
 
   data.contributions.push(alphaEntry);
@@ -193,9 +195,58 @@ export function getAlphaInsights(location) {
 }
 
 /**
- * Calculate bonus points for alpha contribution
+ * Verify contribution against current pricing data
+ * Returns confidence score (0-1) and reasons
  */
-export function calculateAlphaBonus(contribution) {
+export function verifyContribution(contribution, pricingData) {
+  let confidence = 0.5; // Start at neutral
+  const reasons = [];
+
+  if (!pricingData || pricingData.length === 0) {
+    return { confidence, reasons: ['No pricing data to verify against'], verified: false };
+  }
+
+  // Check if reported peak hours align with actual high prices
+  const reportedPeakHours = [];
+  for (let h = contribution.startHour; h <= contribution.endHour; h++) {
+    reportedPeakHours.push(h);
+  }
+
+  // Get actual expensive hours from pricing data
+  const prices = pricingData.map(d => d.price);
+  const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+  const expensiveHours = pricingData
+    .filter(d => d.price > avgPrice * 1.1) // 10% above average
+    .map(d => d.hour);
+
+  // Calculate overlap
+  const overlap = reportedPeakHours.filter(h => expensiveHours.includes(h));
+  const overlapRatio = overlap.length / reportedPeakHours.length;
+
+  // Adjust confidence based on overlap
+  if (contribution.type === 'peak') {
+    if (overlapRatio > 0.7) {
+      confidence = 0.9;
+      reasons.push(`✓ ${(overlapRatio * 100).toFixed(0)}% of reported peak hours match high prices`);
+    } else if (overlapRatio > 0.4) {
+      confidence = 0.6;
+      reasons.push(`~ ${(overlapRatio * 100).toFixed(0)}% partial match with high prices`);
+    } else {
+      confidence = 0.3;
+      reasons.push(`⚠ Only ${(overlapRatio * 100).toFixed(0)}% of reported peak hours match high prices`);
+    }
+  }
+
+  // Check against community consensus
+  const verified = confidence > 0.6;
+
+  return { confidence, reasons, verified, overlapRatio };
+}
+
+/**
+ * Calculate bonus points for alpha contribution (with verification)
+ */
+export function calculateAlphaBonus(contribution, verificationResult = null) {
   // Base bonus
   let bonus = 5;
 
@@ -209,5 +260,66 @@ export function calculateAlphaBonus(contribution) {
     bonus += 3;
   }
 
+  // Verification bonus
+  if (verificationResult && verificationResult.verified) {
+    if (verificationResult.confidence > 0.8) {
+      bonus += 5; // High confidence = extra bonus
+    } else if (verificationResult.confidence > 0.6) {
+      bonus += 3; // Medium confidence = moderate bonus
+    }
+  }
+
   return bonus;
+}
+
+/**
+ * Get information sources for finding local peak times
+ */
+export function getInformationSources(location) {
+  const sources = {
+    general: [
+      '📱 Your electricity bill (look for "peak hours" or "time-of-use" rates)',
+      '🌐 Local utility company website',
+      '💬 Local energy forums or community groups',
+      '📊 Your smart meter app or energy monitor',
+    ],
+    byRegion: {}
+  };
+
+  // Add region-specific sources
+  const locationLower = location.toLowerCase();
+
+  if (locationLower.includes('india') || locationLower.includes('hyderabad') || locationLower.includes('mumbai') || locationLower.includes('delhi')) {
+    sources.byRegion.india = [
+      '🇮🇳 Your DISCOM website (TSSPDCL, BESCOM, BSES, etc.)',
+      '🇮🇳 POSOCO/Grid-India reports: https://posoco.in/',
+      '🇮🇳 Your electricity bill "Time of Day" section',
+    ];
+  }
+
+  if (locationLower.includes('us') || locationLower.includes('texas') || locationLower.includes('california')) {
+    sources.byRegion.us = [
+      '🇺🇸 Your utility dashboard (PG&E, ComEd, Duke Energy, etc.)',
+      '🇺🇸 ERCOT website (Texas): https://www.ercot.com/',
+      '🇺🇸 Your Time-of-Use (TOU) rate schedule',
+    ];
+  }
+
+  if (locationLower.includes('uk') || locationLower.includes('britain') || locationLower.includes('london')) {
+    sources.byRegion.uk = [
+      '🇬🇧 Octopus Energy / British Gas / E.ON app',
+      '🇬🇧 National Grid ESO: https://www.nationalgrideso.com/',
+      '🇬🇧 Your Economy 7 or smart tariff schedule',
+    ];
+  }
+
+  if (locationLower.includes('nigeria') || locationLower.includes('lagos')) {
+    sources.byRegion.nigeria = [
+      '🇳🇬 Your DISCO (EKEDC, IKEDC, etc.) website',
+      '🇳🇬 Nigerian Electricity Regulatory Commission (NERC)',
+      '🇳🇬 Local community knowledge',
+    ];
+  }
+
+  return sources;
 }
