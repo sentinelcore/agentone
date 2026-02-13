@@ -40,7 +40,7 @@ import { submitToOracle } from './src/oracle.js';
 import { initializePoints, awardPoints, getPoints, savePoints } from './src/points.js';
 import { getLocation } from './src/geolocation.js';
 import { purchasePremiumData } from './src/x402.js';
-import { hasBeenAskedForAlpha, markAskedForAlpha, parseAlphaContribution, saveAlphaContribution, calculateAlphaBonus, getAlphaInsights, verifyContribution, getInformationSources } from './src/local-alpha.js';
+import { parseAlphaContribution, saveAlphaContribution, calculateAlphaBonus, getAlphaInsights, verifyContribution, getInformationSources } from './src/local-alpha.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -369,6 +369,79 @@ async function runQueryCycle(wallet, agentName, location, options) {
         })
       ]);
 
+      // Local Alpha Contribution - Ask BEFORE every submission for bonus points
+      console.log(chalk.cyan('\n💡 Bonus Points: Share Local Peak Time Knowledge!'));
+      console.log(chalk.gray('   Help improve global energy data by sharing when electricity is expensive/cheap in your area.\n'));
+
+      console.log(chalk.blue('💬 Examples:'));
+      console.log(chalk.gray('   • "7-9PM peak in Lagos" (evening peak)'));
+      console.log(chalk.gray('   • "1-5AM cheap in Berlin" (off-peak)'));
+      console.log(chalk.gray('   • "5-8PM peak in Mumbai" (dinner time surge)'));
+      console.log(chalk.gray('   • "2-6AM cheap in Texas" (wind energy overnight)'));
+      console.log(chalk.gray('   (Will auto-skip in 15 seconds if no input)\n'));
+
+      const alphaInput = await Promise.race([
+        question(chalk.blue('Share local peak times (or press Enter to skip): ')),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            console.log(chalk.yellow('\n⏱️  Timeout - skipping bonus contribution'));
+            resolve('');
+          }, 15000); // 15 second timeout
+        })
+      ]);
+
+      // Process alpha contribution if provided
+      if (alphaInput.trim()) {
+        const parsed = parseAlphaContribution(alphaInput, location);
+        if (parsed) {
+          // Verify contribution against current pricing data
+          const verification = verifyContribution(parsed, energyData);
+
+          // Save contribution with verification status
+          const contribution = saveAlphaContribution(parsed, agentName, location, verification);
+
+          // Store for dashboard submission
+          pendingAlphaContribution = {
+            type: parsed.type,
+            startHour: parsed.startHour,
+            endHour: parsed.endHour,
+            location: parsed.location,
+            verified: verification.verified,
+            confidence: verification.confidence,
+            verificationReasons: verification.reasons
+          };
+
+          // Calculate bonus (higher for verified contributions)
+          const alphaBonus = calculateAlphaBonus(parsed, verification);
+
+          awardPoints(wallet, alphaBonus);
+
+          console.log(chalk.green(`\n✅ Thanks for contributing! Earned ${alphaBonus} bonus points!`));
+          console.log(chalk.gray(`   Contribution: ${parsed.type} hours ${parsed.startHour}-${parsed.endHour} in ${parsed.location}`));
+
+          // Show verification results
+          if (verification.verified) {
+            console.log(chalk.green(`   🎯 Verified! Confidence: ${(verification.confidence * 100).toFixed(0)}%`));
+            verification.reasons.forEach(reason => {
+              console.log(chalk.gray(`   ${reason}`));
+            });
+            console.log(chalk.green(`   +${alphaBonus - 10} extra points for verified contribution!`));
+          } else {
+            console.log(chalk.yellow(`   ⚠️  Low confidence: ${(verification.confidence * 100).toFixed(0)}%`));
+            verification.reasons.forEach(reason => {
+              console.log(chalk.gray(`   ${reason}`));
+            });
+            console.log(chalk.gray(`   Tip: Contributions that match actual price patterns earn more points!`));
+          }
+        } else {
+          console.log(chalk.yellow('⚠️  Could not parse contribution.'));
+          console.log(chalk.gray('   Accepted formats:'));
+          console.log(chalk.gray('   • "7-9PM peak in Lagos"'));
+          console.log(chalk.gray('   • "1-5AM cheap in Berlin"'));
+          console.log(chalk.gray('   • "19-21 peak Mumbai" (24-hour format also works)'));
+        }
+      }
+
       // Prepare comprehensive submission data
       const submissionData = {
         agent_name: agentName,
@@ -491,103 +564,6 @@ async function runQueryCycle(wallet, agentName, location, options) {
 
       console.log(chalk.magenta(`\n⭐ Earned ${totalPointsEarned} points! (${basePoints} base${bonusPoints > 0 ? ` + ${bonusPoints} bonus` : ''})`));
       console.log(chalk.magenta(`⭐ Total Points: ${currentPoints}`));
-
-      // Local Alpha Contribution (ask once after first run)
-      if (totalRuns === 1 && !hasBeenAskedForAlpha()) {
-        console.log(chalk.cyan('\n💡 Local Alpha Contribution - Help Improve Global Energy Data!'));
-        console.log(chalk.gray('   Share your local electricity peak time knowledge for bonus points.\n'));
-
-        // Show where to find this information
-        console.log(chalk.blue('📚 Where to find peak time information:'));
-        const sources = getInformationSources(location);
-
-        // General sources
-        sources.general.forEach(source => {
-          console.log(chalk.gray(`   ${source}`));
-        });
-
-        // Region-specific sources
-        const regionKeys = Object.keys(sources.byRegion);
-        if (regionKeys.length > 0) {
-          console.log(chalk.blue('\n📍 For your region:'));
-          regionKeys.forEach(region => {
-            sources.byRegion[region].forEach(source => {
-              console.log(chalk.gray(`   ${source}`));
-            });
-          });
-        }
-
-        console.log(chalk.blue('\n💬 Examples of good contributions:'));
-        console.log(chalk.gray('   • "7-9PM peak in Lagos" (evening peak)'));
-        console.log(chalk.gray('   • "1-5AM cheap in Berlin" (off-peak)'));
-        console.log(chalk.gray('   • "5-8PM peak in Mumbai" (dinner time surge)'));
-        console.log(chalk.gray('   • "2-6AM cheap in Texas" (wind energy overnight)'));
-        console.log(chalk.gray('   (Will auto-skip in 15 seconds if no input)\n'));
-
-        // Add timeout to prevent hanging
-        const alphaInput = await Promise.race([
-          question(chalk.blue('Share local peak times (or press Enter to skip): ')),
-          new Promise((resolve) => {
-            setTimeout(() => {
-              console.log(chalk.yellow('\n⏱️  Timeout - skipping alpha contribution'));
-              resolve('');
-            }, 15000); // 15 second timeout
-          })
-        ]);
-
-        if (alphaInput.trim()) {
-          const parsed = parseAlphaContribution(alphaInput, location);
-          if (parsed) {
-            // Verify contribution against current pricing data
-            const verification = verifyContribution(parsed, energyData);
-
-            // Save contribution with verification status
-            const contribution = saveAlphaContribution(parsed, agentName, location, verification);
-
-            // Store for dashboard submission
-            pendingAlphaContribution = {
-              type: parsed.type,
-              startHour: parsed.startHour,
-              endHour: parsed.endHour,
-              location: parsed.location,
-              verified: verification.verified,
-              confidence: verification.confidence,
-              verificationReasons: verification.reasons
-            };
-
-            // Calculate bonus (higher for verified contributions)
-            const alphaBonus = calculateAlphaBonus(parsed, verification);
-
-            awardPoints(wallet, alphaBonus);
-
-            console.log(chalk.green(`\n✅ Thanks for contributing! Earned ${alphaBonus} bonus points!`));
-            console.log(chalk.gray(`   Contribution: ${parsed.type} hours ${parsed.startHour}-${parsed.endHour} in ${parsed.location}`));
-
-            // Show verification results
-            if (verification.verified) {
-              console.log(chalk.green(`   🎯 Verified! Confidence: ${(verification.confidence * 100).toFixed(0)}%`));
-              verification.reasons.forEach(reason => {
-                console.log(chalk.gray(`   ${reason}`));
-              });
-              console.log(chalk.green(`   +${alphaBonus - 10} extra points for verified contribution!`));
-            } else {
-              console.log(chalk.yellow(`   ⚠️  Low confidence: ${(verification.confidence * 100).toFixed(0)}%`));
-              verification.reasons.forEach(reason => {
-                console.log(chalk.gray(`   ${reason}`));
-              });
-              console.log(chalk.gray(`   Tip: Contributions that match actual price patterns earn more points!`));
-            }
-          } else {
-            console.log(chalk.yellow('⚠️  Could not parse contribution.'));
-            console.log(chalk.gray('   Accepted formats:'));
-            console.log(chalk.gray('   • "7-9PM peak in Lagos"'));
-            console.log(chalk.gray('   • "1-5AM cheap in Berlin"'));
-            console.log(chalk.gray('   • "19-21 peak Mumbai" (24-hour format also works)'));
-          }
-        }
-
-        markAskedForAlpha();
-      }
 
       // Show alpha insights if available
       if (totalRuns === 1) {
