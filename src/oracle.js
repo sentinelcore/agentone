@@ -21,8 +21,20 @@ export async function submitToOracle(wallet, submissionData) {
   try {
     const connection = getConnection();
 
+    // Handle both wallet object and wallet address string
+    let publicKey;
+    if (typeof wallet === 'string') {
+      // wallet is a base58 address string
+      publicKey = new PublicKey(wallet);
+    } else if (wallet?.publicKey) {
+      // wallet is a Keypair or wallet object
+      publicKey = wallet.publicKey;
+    } else {
+      throw new Error('Invalid wallet parameter: expected string address or wallet object');
+    }
+
     // Check wallet balance first
-    const balance = await connection.getBalance(wallet.publicKey);
+    const balance = await connection.getBalance(publicKey);
     const balanceSOL = balance / 1000000000; // Convert lamports to SOL
 
     // Minimum balance needed: 0.01 SOL for transaction + fees
@@ -32,9 +44,9 @@ export async function submitToOracle(wallet, submissionData) {
       console.warn(`\n⚠️  Insufficient funds for oracle submission`);
       console.warn(`   Current balance: ${balanceSOL.toFixed(4)} SOL`);
       console.warn(`   Required: ${minRequired} SOL`);
-      console.warn(`   Wallet: ${wallet.publicKey.toBase58()}`);
+      console.warn(`   Wallet: ${publicKey.toBase58()}`);
       console.warn(`\n💡 To get devnet SOL:`);
-      console.warn(`   1. solana airdrop 1 ${wallet.publicKey.toBase58()} --url devnet`);
+      console.warn(`   1. solana airdrop 1 ${publicKey.toBase58()} --url devnet`);
       console.warn(`   2. Or visit: https://faucet.solana.com/`);
       console.warn(`\n📝 Using mock signature for demo purposes...\n`);
       return 'MOCK_ORACLE_TX_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
@@ -45,7 +57,18 @@ export async function submitToOracle(wallet, submissionData) {
 
     // Create instruction data (serialize as JSON then to buffer)
     const dataJSON = JSON.stringify(anonymizedData);
-    const dataBuffer = Buffer.from(dataJSON);
+
+    // Log for verification
+    console.log(`Oracle submission data: ${dataJSON.slice(0, 200)}...`);
+
+    // If using browser wallet (wallet is a string), we can't sign server-side
+    // In production, this would be sent to browser for signing via WebSocket
+    if (typeof wallet === 'string') {
+      console.log(`\n📝 Browser wallet detected - creating mock submission...`);
+      console.log(`   Wallet: ${publicKey.toBase58()}`);
+      console.log(`   Data: ${dataJSON.length} bytes`);
+      return 'MOCK_ORACLE_TX_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
+    }
 
     // For demo, we'll send just a memo transaction (no transfer needed)
     // In production, this would call a custom Solana program
@@ -55,9 +78,9 @@ export async function submitToOracle(wallet, submissionData) {
 
     // Add memo instruction with our data (truncate if needed for tx size limits)
     const MAX_MEMO_SIZE = 566; // Solana memo size limit
-    const memoData = dataBuffer.length > MAX_MEMO_SIZE
-      ? dataBuffer.slice(0, MAX_MEMO_SIZE)
-      : dataBuffer;
+    const memoData = Buffer.from(dataJSON).length > MAX_MEMO_SIZE
+      ? Buffer.from(dataJSON).slice(0, MAX_MEMO_SIZE)
+      : Buffer.from(dataJSON);
 
     // Create simple memo instruction
     const memoInstruction = new TransactionInstruction({
@@ -68,7 +91,7 @@ export async function submitToOracle(wallet, submissionData) {
 
     transaction.add(memoInstruction);
 
-    // Send transaction
+    // Send transaction (only works with keypair wallet, not browser wallet)
     const signature = await sendAndConfirmTransaction(
       connection,
       transaction,
@@ -78,9 +101,6 @@ export async function submitToOracle(wallet, submissionData) {
         preflightCommitment: 'confirmed'
       }
     );
-
-    // Log for verification
-    console.log(`Oracle submission data: ${dataJSON.slice(0, 200)}...`);
 
     return signature;
   } catch (error) {
