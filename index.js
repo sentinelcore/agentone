@@ -74,16 +74,31 @@ function generateAgentName() {
  */
 function findExistingWallets() {
   const wallets = [];
+  const homeDir = os.homedir();
+  const cwd = process.cwd();
+
   const searchPaths = [
-    // Current directory
-    path.join(process.cwd(), 'wallet.json'),
-    path.join(process.cwd(), 'id.json'),
+    // Current directory - most common
+    path.join(cwd, 'wallet.json'),
+    path.join(cwd, 'id.json'),
+    path.join(cwd, 'keypair.json'),
+    path.join(cwd, 'solana-wallet.json'),
+    path.join(cwd, 'my-wallet.json'),
+
+    // Solana CLI default locations
+    path.join(homeDir, '.config', 'solana', 'id.json'),
+    path.join(homeDir, '.solana', 'id.json'),
+    path.join(homeDir, '.solana', 'devnet.json'),
+    path.join(homeDir, '.solana', 'testnet.json'),
+
     // Home directory
-    path.join(os.homedir(), '.solana', 'id.json'),
-    path.join(os.homedir(), 'wallet.json'),
-    // Common wallet names in current dir
-    path.join(process.cwd(), 'solana-wallet.json'),
-    path.join(process.cwd(), 'keypair.json'),
+    path.join(homeDir, 'wallet.json'),
+    path.join(homeDir, 'solana-wallet.json'),
+
+    // Downloads (users often save here)
+    path.join(homeDir, 'Downloads', 'wallet.json'),
+    path.join(homeDir, 'Downloads', 'solana-wallet.json'),
+    path.join(homeDir, 'Downloads', 'keypair.json'),
   ];
 
   for (const walletPath of searchPaths) {
@@ -119,10 +134,11 @@ async function ensureWallet(walletPath) {
   console.log(chalk.yellow(`\n⚠️  No wallet found at ${walletPath}`));
 
   // Search for existing wallets
+  console.log(chalk.blue('🔍 Searching for existing Solana wallets...'));
   const existingWallets = findExistingWallets();
 
   if (existingWallets.length > 0) {
-    console.log(chalk.green(`\n🔍 Found ${existingWallets.length} existing wallet(s):\n`));
+    console.log(chalk.green(`\n✓ Found ${existingWallets.length} existing wallet(s):\n`));
 
     existingWallets.forEach((wallet, index) => {
       console.log(chalk.cyan(`  ${index + 1}. ${wallet.name}`));
@@ -142,6 +158,9 @@ async function ensureWallet(walletPath) {
         console.log(chalk.yellow('Invalid selection, creating new wallet...'));
       }
     }
+  } else {
+    console.log(chalk.yellow('⚠️  No existing wallets found in common locations.'));
+    console.log(chalk.gray('   Searched: ~/.solana/id.json, ./wallet.json, ./id.json, etc.\n'));
   }
 
   const answer = await question('Create a new wallet? (Y/n): ');
