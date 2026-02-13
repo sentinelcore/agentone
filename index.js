@@ -307,25 +307,33 @@ async function main(options) {
       // Ask user to confirm or override (with timeout)
       console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
       console.log(chalk.gray('(Press Enter to use detected location, or type custom location)'));
+      console.log(chalk.gray('You have 30 seconds to respond...'));
 
       try {
-        // Create a promise that auto-resolves after 10 seconds
+        // Create a promise that auto-resolves after 30 seconds
         const timeoutPromise = new Promise((resolve) => {
           setTimeout(() => {
-            console.log(chalk.yellow('\n⏱️  No input received, using detected location...'));
-            resolve('');
-          }, 10000);
+            console.log(chalk.yellow('\n⏱️  Timeout - using detected location...'));
+            resolve('__TIMEOUT__');
+          }, 30000);
         });
 
         const questionPromise = question('Enter custom location (or press Enter): ');
 
         const customLocation = await Promise.race([questionPromise, timeoutPromise]);
-        location = customLocation.trim() || detectedLocation;
 
-        if (customLocation.trim()) {
-          console.log(chalk.green(`✓ Using custom location: ${location}`));
-        } else {
+        // If timeout occurred, use detected location
+        if (customLocation === '__TIMEOUT__') {
+          location = detectedLocation;
           console.log(chalk.green(`✓ Using detected location: ${location}`));
+        } else {
+          // Use custom location if provided, otherwise use detected
+          location = customLocation.trim() || detectedLocation;
+          if (customLocation.trim()) {
+            console.log(chalk.green(`✓ Using custom location: ${location}`));
+          } else {
+            console.log(chalk.green(`✓ Using detected location: ${location}`));
+          }
         }
       } catch (error) {
         console.log(chalk.yellow(`\n⚠️  Prompt error, using detected location: ${detectedLocation}`));

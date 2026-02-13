@@ -6,8 +6,16 @@
 
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-dotenv.config();
+// Get the directory of this module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env from project root (one level up from src/)
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const EIA_API_KEY = process.env.EIA_API_KEY;
 const EIA_BASE_URL = 'https://api.eia.gov/v2';
