@@ -33,7 +33,7 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
 // Import modules
 import { startWalletServer, openWalletConnection, waitForWalletConnection, getConnectedWallet } from './src/wallet-server.js';
 import { setConnectedWallet, getBalance, checkBalance, mockStake, refundStake } from './src/browser-wallet.js';
-import { getWeatherForLocation } from './src/weather-data.js';
+import { getWeatherForLocation, getFallbackCoordinates } from './src/weather-data.js';
 import { generateSmartPricing, getPricingInsights, getRegionalPricing } from './src/smart-pricing.js';
 import { findCheapestWindow, calculateSavings } from './src/optimizer.js';
 import { submitToOracle } from './src/oracle.js';
@@ -288,7 +288,38 @@ async function runQueryCycle(wallet, agentName, location, options) {
 
       } catch (error) {
         weatherSpinner.fail(chalk.red('Failed to fetch weather data'));
-        throw new Error(`Unable to generate pricing simulation: ${error.message}`);
+
+        // Check if we have fallback coordinates available
+        const fallbackCoords = getFallbackCoordinates(location);
+
+        console.log(chalk.yellow(`\n⚠️  Could not geocode location: "${location}"`));
+        console.log(chalk.yellow(`   Error: ${error.message}`));
+
+        if (fallbackCoords) {
+          console.log(chalk.blue(`\n💡 We have fallback coordinates for: ${fallbackCoords.name}, ${fallbackCoords.country}`));
+        }
+
+        console.log(chalk.blue(`\nOptions:`));
+        console.log(chalk.gray(`   1. Try a different location (e.g., just "Hyderabad" or "Hyderabad, India")`));
+        if (fallbackCoords) {
+          console.log(chalk.gray(`   2. Use fallback coordinates for ${fallbackCoords.name}`));
+        }
+        console.log(chalk.gray(`   3. Exit and restart\n`));
+
+        const userChoice = await question(chalk.blue('Enter new location (or press Enter to exit): '));
+
+        if (!userChoice.trim()) {
+          console.log(chalk.yellow('Exiting...'));
+          throw new Error('User chose to exit');
+        }
+
+        // Update location and retry this cycle
+        location = userChoice.trim();
+        console.log(chalk.green(`✓ Updated location to: ${location}`));
+        console.log(chalk.gray('Retrying...\n'));
+
+        // Retry with new location - this will loop back and try again
+        continue;
       }
 
       // Run optimization

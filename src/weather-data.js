@@ -138,34 +138,27 @@ const KNOWN_CITIES = {
 
 /**
  * Get weather data for a location
+ * Throws error if geocoding fails - caller should handle user interaction
  */
 export async function getWeatherForLocation(location) {
-  try {
-    let coords;
+  // Try geocoding - throw error if fails
+  const coords = await getCoordinatesFromLocation(location);
+  console.log(`📍 Location: ${coords.name}, ${coords.country} (${coords.latitude}, ${coords.longitude})`);
 
-    // Try geocoding first
-    try {
-      coords = await getCoordinatesFromLocation(location);
-      console.log(`📍 Location: ${coords.name}, ${coords.country} (${coords.latitude}, ${coords.longitude})`);
-    } catch (geocodeError) {
-      // Try fallback to known cities
-      const cityKey = location.split(',')[0].trim().toLowerCase();
-      if (KNOWN_CITIES[cityKey]) {
-        coords = KNOWN_CITIES[cityKey];
-        console.log(`📍 Using fallback coordinates for ${coords.name}, ${coords.country}`);
-      } else {
-        throw geocodeError;
-      }
-    }
+  // Get weather forecast
+  const forecast = await fetchWeatherForecast(coords.latitude, coords.longitude, coords.timezone);
 
-    // Get weather forecast
-    const forecast = await fetchWeatherForecast(coords.latitude, coords.longitude, coords.timezone);
+  return {
+    location: coords,
+    forecast
+  };
+}
 
-    return {
-      location: coords,
-      forecast
-    };
-  } catch (error) {
-    throw new Error(`Failed to get weather for location: ${error.message}`);
-  }
+/**
+ * Get fallback coordinates for known cities
+ * Returns null if city not in database
+ */
+export function getFallbackCoordinates(location) {
+  const cityKey = location.split(',')[0].trim().toLowerCase();
+  return KNOWN_CITIES[cityKey] || null;
 }
