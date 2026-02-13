@@ -32,7 +32,8 @@ import os from 'os';
 dotenv.config();
 
 // Import modules
-import { loadWallet, stakeSOL, refundStake } from './src/wallet.js';
+import { startWalletServer, openWalletConnection, waitForWalletConnection, getConnectedWallet } from './src/wallet-server.js';
+import { setConnectedWallet, getBalance, checkBalance, mockStake, refundStake } from './src/browser-wallet.js';
 import { fetchEnergyData, fetchElectricityMapsData } from './src/energy-data.js';
 import { findCheapestWindow, calculateSavings } from './src/optimizer.js';
 import { submitToOracle } from './src/oracle.js';
@@ -285,14 +286,41 @@ async function main(options) {
     // Auto-configure environment
     await ensureEnvironment();
 
-    // Auto-handle wallet
-    const walletPath = options.wallet || DEFAULT_WALLET_PATH;
-    const confirmedWalletPath = await ensureWallet(walletPath);
+    // Start wallet server
+    console.log(chalk.blue('🌐 Starting browser wallet connection...'));
+    const server = await startWalletServer();
 
-    // Load wallet
-    const spinner = ora('Loading wallet...').start();
-    const wallet = await loadWallet(confirmedWalletPath);
-    spinner.succeed(chalk.green(`Wallet loaded: ${wallet.publicKey.toBase58()}`));
+    if (!server) {
+      console.log(chalk.red('❌ Failed to start wallet server'));
+      process.exit(1);
+    }
+
+    // Open browser for wallet connection
+    await openWalletConnection();
+
+    // Wait for wallet connection
+    const walletSpinner = ora('Waiting for wallet connection in browser...').start();
+    const walletAddress = await waitForWalletConnection();
+    walletSpinner.succeed(chalk.green(`✓ Wallet connected: ${walletAddress}`));
+
+    // Set connected wallet
+    setConnectedWallet(walletAddress);
+
+    // Check wallet balance
+    const balanceSpinner = ora('Checking wallet balance...').start();
+    const balance = await getBalance();
+    balanceSpinner.succeed(chalk.green(`💰 Wallet Balance: ${balance.toFixed(4)} SOL`));
+
+    // Verify sufficient balance
+    try {
+      await checkBalance(STAKE_AMOUNT + 0.001); // stake + fees
+    } catch (error) {
+      console.log(chalk.red(`\n❌ ${error.message}`));
+      console.log(chalk.yellow(`\nPlease fund your wallet and try again:`));
+      console.log(chalk.blue(`https://faucet.solana.com/`));
+      console.log(chalk.gray(`Wallet: ${walletAddress}\n`));
+      process.exit(1);
+    }
 
     // Set agent name
     const agentName = options.agentName || generateAgentName();
@@ -345,14 +373,14 @@ async function main(options) {
     }
 
     // Initialize points system
-    initializePoints(wallet.publicKey.toBase58());
-    const currentPoints = getPoints(wallet.publicKey.toBase58());
+    initializePoints(walletAddress);
+    const currentPoints = getPoints(walletAddress);
     console.log(chalk.magenta(`⭐ Current Points: ${currentPoints}`));
 
-    // Stake SOL
+    // Stake SOL (via browser wallet)
     console.log(chalk.yellow(`\n💰 Staking ${STAKE_AMOUNT} SOL for anti-spam/gas...`));
     const stakeSpinner = ora('Submitting stake transaction...').start();
-    stakeTransactionSignature = await stakeSOL(wallet, STAKE_AMOUNT);
+    stakeTransactionSignature = await mockStake(STAKE_AMOUNT);
     stakeSpinner.succeed(chalk.green(`Stake successful! TX: ${stakeTransactionSignature}`));
 
     console.log(chalk.cyan('\n🔄 Starting query cycle (runs every 15 minutes)...'));
@@ -366,14 +394,14 @@ async function main(options) {
       if (totalRuns > 0) {
         console.log(chalk.blue('💸 Refunding stake...'));
         try {
-          const refundTx = await refundStake(wallet, STAKE_AMOUNT);
+          const refundTx = await refundStake(STAKE_AMOUNT);
           console.log(chalk.green(`Refund successful! TX: ${refundTx}`));
         } catch (error) {
           console.error(chalk.red(`Refund failed: ${error.message}`));
         }
       }
 
-      const finalPoints = getPoints(wallet.publicKey.toBase58());
+      const finalPoints = getPoints(walletAddress);
       console.log(chalk.magenta(`\n⭐ Final Points: ${finalPoints}`));
       console.log(chalk.cyan(`📊 Total Runs: ${totalRuns}\n`));
 
@@ -470,7 +498,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...submissionData,
-            wallet: wallet.publicKey.toBase58(),
+            wallet: walletAddress,
             run_number: totalRuns
           })
         });
@@ -496,8 +524,8 @@ async function runQueryCycle(wallet, agentName, location, options) {
       const bonusPoints = savings > 15 ? 2 : 0; // Bonus for good savings
       const totalPointsEarned = basePoints + bonusPoints;
 
-      awardPoints(wallet.publicKey.toBase58(), totalPointsEarned);
-      const currentPoints = getPoints(wallet.publicKey.toBase58());
+      awardPoints(walletAddress, totalPointsEarned);
+      const currentPoints = getPoints(walletAddress);
 
       console.log(chalk.magenta(`\n⭐ Earned ${totalPointsEarned} points! (${basePoints} base${bonusPoints > 0 ? ` + ${bonusPoints} bonus` : ''})`));
       console.log(chalk.magenta(`⭐ Total Points: ${currentPoints}`));
@@ -506,7 +534,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
       if (options.premium && totalRuns % 3 === 0) {
         console.log(chalk.yellow('\n🔒 Premium Feature Available!'));
         try {
-          const premiumData = await purchasePremiumData(wallet);
+          const premiumData = await purchasePremiumData(walletAddress);
           console.log(chalk.green(`Premium forecast data: ${JSON.stringify(premiumData)}`));
         } catch (error) {
           console.log(chalk.red(`Premium purchase failed: ${error.message}`));
