@@ -46,7 +46,8 @@ const __dirname = dirname(__filename);
 // Configuration
 const STAKE_AMOUNT = parseFloat(process.env.STAKE_AMOUNT || '0.01');
 const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-const DEFAULT_WALLET_PATH = path.join(__dirname, 'wallet.json');
+// Use current working directory for wallet by default (not package installation dir)
+const DEFAULT_WALLET_PATH = path.join(process.cwd(), 'wallet.json');
 
 // Global state
 let isRunning = true;
@@ -84,6 +85,10 @@ function findExistingWallets() {
     path.join(cwd, 'keypair.json'),
     path.join(cwd, 'solana-wallet.json'),
     path.join(cwd, 'my-wallet.json'),
+
+    // Package directory (for global installations)
+    path.join(__dirname, 'wallet.json'),
+    path.join(__dirname, 'id.json'),
 
     // Solana CLI default locations
     path.join(homeDir, '.config', 'solana', 'id.json'),
@@ -196,6 +201,7 @@ async function ensureWallet(walletPath) {
       writeFileSync(walletPath, JSON.stringify(privateKey));
 
       console.log(chalk.green(`✓ Wallet imported: ${keypair.publicKey.toBase58()}`));
+      console.log(chalk.blue(`📁 Wallet saved to: ${walletPath}`));
       return walletPath;
     } catch (error) {
       console.log(chalk.red(`\n❌ Invalid private key: ${error.message}`));
@@ -212,6 +218,7 @@ async function ensureWallet(walletPath) {
   writeFileSync(walletPath, JSON.stringify(secretKey));
 
   console.log(chalk.green(`✓ Wallet created: ${keypair.publicKey.toBase58()}`));
+  console.log(chalk.blue(`📁 Wallet saved to: ${walletPath}`));
   console.log(chalk.yellow('⚠️  IMPORTANT: Backup this wallet file!'));
   console.log(chalk.blue(`\nYou need devnet SOL. Get it from:`));
   console.log(chalk.gray('  solana airdrop 1 ' + keypair.publicKey.toBase58() + ' --url devnet'));
