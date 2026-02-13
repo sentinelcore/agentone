@@ -463,9 +463,19 @@ async function runQueryCycle(wallet, agentName, location, options) {
         console.log(chalk.gray('   • "7-9PM peak in Lagos" (evening peak)'));
         console.log(chalk.gray('   • "1-5AM cheap in Berlin" (off-peak)'));
         console.log(chalk.gray('   • "5-8PM peak in Mumbai" (dinner time surge)'));
-        console.log(chalk.gray('   • "2-6AM cheap in Texas" (wind energy overnight)\n'));
+        console.log(chalk.gray('   • "2-6AM cheap in Texas" (wind energy overnight)'));
+        console.log(chalk.gray('   (Will auto-skip in 15 seconds if no input)\n'));
 
-        const alphaInput = await question(chalk.blue('Share local peak times (or press Enter to skip): '));
+        // Add timeout to prevent hanging
+        const alphaInput = await Promise.race([
+          question(chalk.blue('Share local peak times (or press Enter to skip): ')),
+          new Promise((resolve) => {
+            setTimeout(() => {
+              console.log(chalk.yellow('\n⏱️  Timeout - skipping alpha contribution'));
+              resolve('');
+            }, 15000); // 15 second timeout
+          })
+        ]);
 
         if (alphaInput.trim()) {
           const parsed = parseAlphaContribution(alphaInput, location);
