@@ -26,8 +26,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from current working directory (not package dir)
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 // Import modules
 import { startWalletServer, openWalletConnection, waitForWalletConnection, getConnectedWallet } from './src/wallet-server.js';
@@ -71,16 +71,29 @@ function generateAgentName() {
  * Auto-configure .env if needed
  */
 async function ensureEnvironment() {
-  const envPath = path.join(__dirname, '.env');
+  // Use current working directory for .env (so npx works correctly)
+  const envPath = path.join(process.cwd(), '.env');
 
   // Create .env from example if missing
   if (!existsSync(envPath)) {
+    // Look for .env.example in package directory
     const examplePath = path.join(__dirname, '.env.example');
     if (existsSync(examplePath)) {
       console.log(chalk.yellow('⚠️  .env file not found, creating from template...'));
       const example = readFileSync(examplePath, 'utf-8');
       writeFileSync(envPath, example);
-      console.log(chalk.green('✓ .env file created'));
+      console.log(chalk.green(`✓ .env file created at ${envPath}`));
+    } else {
+      // Create a basic .env file if no example exists
+      const basicEnv = `# EIA API Key (Required - Get from https://www.eia.gov/opendata/register.php)
+EIA_API_KEY=your_eia_api_key_here
+
+# Solana Configuration
+SOLANA_NETWORK=devnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+`;
+      writeFileSync(envPath, basicEnv);
+      console.log(chalk.green(`✓ .env file created at ${envPath}`));
     }
   }
 
@@ -172,13 +185,13 @@ async function main(options) {
       // Ask user to confirm or override (with timeout)
       console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
       console.log(chalk.gray('(Press Enter to use detected location, or type custom location)'));
-      console.log(chalk.gray('You have 30 seconds to respond...'));
+      console.log(chalk.gray('You have 60 seconds to respond...'));
 
       try {
         let timeoutId;
         let hasResolved = false;
 
-        // Create a promise that auto-resolves after 30 seconds
+        // Create a promise that auto-resolves after 60 seconds
         const timeoutPromise = new Promise((resolve) => {
           timeoutId = setTimeout(() => {
             if (!hasResolved) {
@@ -186,7 +199,7 @@ async function main(options) {
               console.log(chalk.yellow('\n⏱️  Timeout - using detected location...'));
               resolve('__TIMEOUT__');
             }
-          }, 30000);
+          }, 60000); // 60 seconds for npx readline delay
         });
 
         const questionPromise = question('Enter custom location (or press Enter): ').then(answer => {
