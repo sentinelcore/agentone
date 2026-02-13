@@ -13,7 +13,8 @@ import { dirname } from 'path';
 import open from 'open';
 import chalk from 'chalk';
 
-const { WebSocketServer } = WebSocket;
+// WebSocket.Server is the correct export for ws package
+const WebSocketServer = WebSocket.Server;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
