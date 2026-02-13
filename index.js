@@ -173,16 +173,26 @@ async function main(options) {
       const detectedLocation = await getLocation();
       locationSpinner.succeed(chalk.green(`📍 Detected Location: ${detectedLocation}`));
 
-      // Ask user to confirm or override (no timeout - wait for input)
+      // Ask user to confirm or override with 10 second timeout
       console.log(chalk.blue('\nYou can use this location or enter a custom one.'));
       console.log(chalk.gray('(Press Enter to use detected location, or type a custom location like "Dallas,TX,USA")'));
+      console.log(chalk.gray('(Will auto-proceed in 10 seconds if no input)\n'));
 
       try {
-        const customLocation = await question('Enter location (or press Enter for auto-detected): ');
+        // Create a promise race between user input and timeout
+        const customLocation = await Promise.race([
+          question('Enter location (or press Enter for auto-detected): '),
+          new Promise((resolve) => {
+            setTimeout(() => {
+              console.log(chalk.yellow('\n⏱️  Timeout - using detected location'));
+              resolve('');
+            }, 10000); // 10 second timeout
+          })
+        ]);
 
         // Use custom location if provided, otherwise use detected
-        location = customLocation.trim() || detectedLocation;
-        if (customLocation.trim()) {
+        location = (customLocation || '').trim() || detectedLocation;
+        if ((customLocation || '').trim()) {
           console.log(chalk.green(`✓ Using custom location: ${location}`));
         } else {
           console.log(chalk.green(`✓ Using detected location: ${location}`));
