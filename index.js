@@ -20,12 +20,13 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import dotenv from 'dotenv';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { createInterface } from 'readline';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { Keypair } from '@solana/web3.js';
+import os from 'os';
 
 // Load environment variables
 dotenv.config();
@@ -69,6 +70,45 @@ function generateAgentName() {
 }
 
 /**
+ * Search for existing Solana wallets in common locations
+ */
+function findExistingWallets() {
+  const wallets = [];
+  const searchPaths = [
+    // Current directory
+    path.join(process.cwd(), 'wallet.json'),
+    path.join(process.cwd(), 'id.json'),
+    // Home directory
+    path.join(os.homedir(), '.solana', 'id.json'),
+    path.join(os.homedir(), 'wallet.json'),
+    // Common wallet names in current dir
+    path.join(process.cwd(), 'solana-wallet.json'),
+    path.join(process.cwd(), 'keypair.json'),
+  ];
+
+  for (const walletPath of searchPaths) {
+    if (existsSync(walletPath)) {
+      try {
+        const keyData = JSON.parse(readFileSync(walletPath, 'utf-8'));
+        if (Array.isArray(keyData) && keyData.length === 64) {
+          const keypair = Keypair.fromSecretKey(Uint8Array.from(keyData));
+          wallets.push({
+            path: walletPath,
+            publicKey: keypair.publicKey.toBase58(),
+            name: path.basename(walletPath),
+            location: path.dirname(walletPath)
+          });
+        }
+      } catch (error) {
+        // Skip invalid wallets
+      }
+    }
+  }
+
+  return wallets;
+}
+
+/**
  * Auto-create wallet if missing
  */
 async function ensureWallet(walletPath) {
@@ -77,6 +117,33 @@ async function ensureWallet(walletPath) {
   }
 
   console.log(chalk.yellow(`\n⚠️  No wallet found at ${walletPath}`));
+
+  // Search for existing wallets
+  const existingWallets = findExistingWallets();
+
+  if (existingWallets.length > 0) {
+    console.log(chalk.green(`\n🔍 Found ${existingWallets.length} existing wallet(s):\n`));
+
+    existingWallets.forEach((wallet, index) => {
+      console.log(chalk.cyan(`  ${index + 1}. ${wallet.name}`));
+      console.log(chalk.gray(`     Path: ${wallet.path}`));
+      console.log(chalk.gray(`     Public Key: ${wallet.publicKey}\n`));
+    });
+
+    const useExisting = await question('Use an existing wallet? (Enter number, or press Enter to create new): ');
+
+    if (useExisting.trim() && !isNaN(useExisting)) {
+      const index = parseInt(useExisting.trim()) - 1;
+      if (index >= 0 && index < existingWallets.length) {
+        const selectedWallet = existingWallets[index];
+        console.log(chalk.green(`✓ Using wallet: ${selectedWallet.publicKey}`));
+        return selectedWallet.path;
+      } else {
+        console.log(chalk.yellow('Invalid selection, creating new wallet...'));
+      }
+    }
+  }
+
   const answer = await question('Create a new wallet? (Y/n): ');
 
   if (answer.toLowerCase() === 'n') {
