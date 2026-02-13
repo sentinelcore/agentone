@@ -1,6 +1,6 @@
 {
   "name": "decharge-scout",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "description": "Global Energy Scout - Weather-powered intelligent energy price forecasting with Solana integration",
   "main": "index.js",
   "type": "module",
