@@ -1,6 +1,6 @@
 {
   "name": "decharge-scout",
-  "version": "1.2.0",
+  "version": "2.4.0",
   "description": "AI-powered energy grid data scout with Solana integration",
   "main": "index.js",
   "type": "module",
