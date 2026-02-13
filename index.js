@@ -32,7 +32,7 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
 // Import modules
 import { startWalletServer, openWalletConnection, waitForWalletConnection, getConnectedWallet } from './src/wallet-server.js';
 import { setConnectedWallet, getBalance, checkBalance, mockStake, refundStake } from './src/browser-wallet.js';
-import { fetchEnergyData, fetchElectricityMapsData } from './src/energy-data.js';
+import { fetchEnergyData, fetchElectricityMapsData, fetchEnergyDataSmart } from './src/energy-data.js';
 import { findCheapestWindow, calculateSavings } from './src/optimizer.js';
 import { submitToOracle } from './src/oracle.js';
 import { initializePoints, awardPoints, getPoints, savePoints } from './src/points.js';
@@ -278,24 +278,20 @@ async function runQueryCycle(wallet, agentName, location, options) {
       console.log(chalk.cyan.bold(`🔍 Run #${totalRuns} - ${new Date().toLocaleString()}`));
       console.log(chalk.cyan(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`));
 
-      // Fetch energy data
+      // Fetch energy data using smart routing (tries FREE APIs first!)
       const dataSpinner = ora('Fetching energy grid data...').start();
       let energyData;
 
       try {
-        energyData = await fetchEnergyData(location);
-        const gridRegion = energyData[0]?.source?.split('-')[1] || 'Unknown';
-        dataSpinner.succeed(chalk.green(`Fetched ${energyData.length} data points from ${energyData[0]?.source || 'EIA'}`));
+        // Smart routing: tries free APIs first based on location!
+        energyData = await fetchEnergyDataSmart(location);
+        const source = energyData[0]?.source || 'Unknown';
+        const isFree = source.includes('FREE') || source.includes('Mock');
+        const freeLabel = isFree ? '(FREE!)' : '';
+        dataSpinner.succeed(chalk.green(`✓ Fetched ${energyData.length} data points from ${source} ${freeLabel}`));
       } catch (error) {
-        dataSpinner.warn(chalk.yellow(`EIA API failed, trying Electricity Maps...`));
-
-        try {
-          energyData = await fetchElectricityMapsData(location);
-          dataSpinner.succeed(chalk.green(`Fetched forecast data from Electricity Maps`));
-        } catch (fallbackError) {
-          dataSpinner.fail(chalk.red('All data sources failed'));
-          throw new Error('Unable to fetch energy data from any source');
-        }
+        dataSpinner.fail(chalk.red('Failed to fetch energy data'));
+        throw new Error(`Unable to fetch energy data: ${error.message}`);
       }
 
       // Run optimization

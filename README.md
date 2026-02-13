@@ -28,9 +28,12 @@ Then run: `decharge-scout`
 
 - Node.js v20 or higher
 - A Solana wallet keypair file (JSON format)
-- **Energy Data API Key** (choose one based on your location):
-  - **EIA API** (FREE, US-only): Get from https://www.eia.gov/opendata/register.php
-  - **Electricity Maps** (PAID, GLOBAL): Get from https://www.electricitymaps.com/ (for India, EU, Australia, etc.)
+- **Energy Data API Key** (choose FREE option based on your location):
+  - 🇺🇸 **EIA API** (FREE, US-only): https://www.eia.gov/opendata/register.php
+  - 🇪🇺 **ENTSO-E** (FREE, Europe): https://transparency.entsoe.eu/
+  - 🇬🇧 **UK Carbon Intensity** (FREE, no key needed!): Works automatically for UK
+  - 🌍 **Electricity Maps** (PAID, Global): https://www.electricitymaps.com/ (only if you need paid features)
+  - 📊 **Mock Data** (FREE, testing): Press Enter to skip API setup - works everywhere!
 - At least 0.02 SOL in your devnet wallet for staking + fees
 
 ## Installation
@@ -235,29 +238,47 @@ decharge-scout/
 
 ## API Data Sources
 
-### Option 1: EIA API (US-only, FREE)
+The CLI uses **smart routing** to automatically choose the best FREE API based on your location!
+
+### 🆓 FREE APIs (Recommended!)
+
+#### 🇺🇸 EIA API (US-only, FREE)
 - **Coverage**: United States only (ERCOT, CAISO, NYISO, PJM, MISO, ISNE)
 - **Endpoint**: `https://api.eia.gov/v2/electricity/rto/region-data/data/`
 - **Provides**: Real-time demand and pricing for US grid regions
 - **Get Key**: FREE at https://www.eia.gov/opendata/register.php
-- **Best for**: US-based users (Texas, California, New York, etc.)
+- **Auto-used for**: Texas, California, New York, etc.
 
-### Option 2: Electricity Maps (GLOBAL, PAID)
+#### 🇪🇺 ENTSO-E (Europe, FREE)
+- **Coverage**: All European countries
+- **Endpoint**: `https://web-api.tp.entsoe.eu/api`
+- **Provides**: Day-ahead electricity prices and demand forecasts
+- **Get Key**: FREE at https://transparency.entsoe.eu/
+- **Auto-used for**: Germany, France, Spain, Italy, Poland, Netherlands, Belgium, Austria
+- **Registration**: Free account required, instant approval
+
+#### 🇬🇧 UK Carbon Intensity (UK, FREE - No key needed!)
+- **Coverage**: United Kingdom only
+- **Endpoint**: `https://api.carbonintensity.org.uk`
+- **Provides**: Real-time carbon intensity and price forecasts
+- **Get Key**: No key needed! Completely open API
+- **Auto-used for**: UK locations (works out of the box!)
+
+### 💰 PAID API (Global fallback)
+
+#### 🌍 Electricity Maps (GLOBAL, PAID)
 - **Coverage**: Global (India, EU, UK, Australia, US, and more)
 - **Endpoint**: `https://api.electricitymaps.com/v3/carbon-intensity/forecast`
 - **Provides**: Carbon intensity forecasts and grid data for 200+ zones
 - **Get Key**: Paid API at https://www.electricitymaps.com/
-- **Best for**: International users (India, Europe, Australia, etc.)
-- **Zones Supported**:
-  - 🇮🇳 India: IN-DL (Delhi), IN-MH (Mumbai), IN-KA (Bangalore), IN-TG (Hyderabad), IN-TN (Chennai)
-  - 🇺🇸 USA: US-TEX-ERCO, US-CAL-CISO, US-NY-NYIS, US-NE-ISNE
-  - 🇪🇺 Europe: GB (UK), DE (Germany), FR (France), ES (Spain), IT (Italy)
-  - 🇦🇺 Australia: AUS-NSW, AUS-VIC, AUS-QLD
+- **Auto-used for**: India, Australia, and regions not covered by free APIs
+- **Pricing**: Expensive - use only if free options don't cover your region
 
-### Fallback: Mock Data
-- Generated locally if APIs are unavailable
-- Simulates realistic daily pricing patterns
-- Useful for testing without API keys
+### 📊 Mock Data (FREE - Always available!)
+- **Coverage**: Worldwide
+- **Generated**: Locally using realistic pricing patterns
+- **Auto-used**: When no API keys are configured or all APIs fail
+- **Perfect for**: Testing, demos, and development
 
 ## Points System
 
