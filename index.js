@@ -133,6 +133,7 @@ function findExistingWallets() {
  */
 async function ensureWallet(walletPath) {
   if (existsSync(walletPath)) {
+    console.log(chalk.green(`✓ Using wallet: ${walletPath}`));
     return walletPath;
   }
 
