@@ -80,10 +80,42 @@ async function ensureWallet(walletPath) {
   const answer = await question('Create a new wallet? (Y/n): ');
 
   if (answer.toLowerCase() === 'n') {
-    console.log(chalk.blue('\nYou can create a wallet manually:'));
-    console.log(chalk.gray('  solana-keygen new --outfile ./wallet.json'));
-    console.log(chalk.gray('  Or run: node setup.js\n'));
-    process.exit(1);
+    console.log(chalk.blue('\n📥 Import existing wallet'));
+    const importAnswer = await question('Do you want to import an existing wallet private key? (Y/n): ');
+
+    if (importAnswer.toLowerCase() === 'n') {
+      console.log(chalk.blue('\nYou can create a wallet manually:'));
+      console.log(chalk.gray('  solana-keygen new --outfile ./wallet.json'));
+      console.log(chalk.gray('  Or run: node setup.js\n'));
+      process.exit(1);
+    }
+
+    console.log(chalk.yellow('\n⚠️  Enter your Solana wallet private key'));
+    console.log(chalk.gray('Format: [1,2,3,...] (array of 64 numbers)'));
+    const privateKeyInput = await question('Private key: ');
+
+    try {
+      // Parse the private key
+      const privateKey = JSON.parse(privateKeyInput.trim());
+
+      // Validate it's an array of numbers
+      if (!Array.isArray(privateKey) || privateKey.length !== 64) {
+        throw new Error('Invalid private key format');
+      }
+
+      // Create keypair to validate
+      const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKey));
+
+      // Save to file
+      writeFileSync(walletPath, JSON.stringify(privateKey));
+
+      console.log(chalk.green(`✓ Wallet imported: ${keypair.publicKey.toBase58()}`));
+      return walletPath;
+    } catch (error) {
+      console.log(chalk.red(`\n❌ Invalid private key: ${error.message}`));
+      console.log(chalk.gray('Expected format: [1,2,3,...] (array of 64 numbers)\n'));
+      process.exit(1);
+    }
   }
 
   console.log(chalk.blue('Generating new wallet...'));
@@ -124,7 +156,12 @@ async function ensureEnvironment() {
   // Check for EIA API key
   if (!process.env.EIA_API_KEY || process.env.EIA_API_KEY === 'your_eia_api_key_here') {
     console.log(chalk.yellow('\n⚠️  EIA_API_KEY not configured'));
-    console.log(chalk.blue('Get a free API key from: https://www.eia.gov/opendata/register.php'));
+    console.log(chalk.blue('\n📝 How to get a FREE EIA API key:'));
+    console.log(chalk.gray('  1. Visit: https://www.eia.gov/opendata/register.php'));
+    console.log(chalk.gray('  2. Fill out the registration form'));
+    console.log(chalk.gray('  3. Check your email and verify your email address'));
+    console.log(chalk.gray('  4. Your API key will be sent to your email'));
+    console.log(chalk.gray('  5. Copy the API key and paste it below\n'));
 
     const answer = await question('Enter your EIA API key (or press Enter to skip): ');
 
@@ -317,40 +354,38 @@ async function runQueryCycle(wallet, agentName, location, options) {
       console.log(chalk.blue('\n📊 Dashboard Data Structure:'));
       console.log(chalk.gray(JSON.stringify(submissionData, null, 2)));
 
-      // Optional: Submit to mock dashboard API
-      if (process.env.DASHBOARD_API_URL) {
-        try {
-          const dashboardSpinner = ora('Submitting to dashboard API...').start();
-          const apiUrl = process.env.DASHBOARD_API_URL;
+      // Submit to DeCharge Scout dashboard
+      try {
+        const dashboardSpinner = ora('Submitting to DeCharge Scout dashboard...').start();
+        const apiUrl = 'https://decharge-scout.vercel.app/api/agentone/submit';
 
-          console.log(chalk.blue(`\n🌐 Dashboard API URL: ${apiUrl}`));
-          console.log(chalk.gray(`📤 Submitting data: ${JSON.stringify(submissionData, null, 2)}`));
+        console.log(chalk.blue(`\n🌐 Dashboard API URL: ${apiUrl}`));
+        console.log(chalk.gray(`📤 Submitting data...`));
 
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(submissionData)
-          });
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...submissionData,
+            wallet: wallet.publicKey.toBase58(),
+            run_number: totalRuns
+          })
+        });
 
-          const responseText = await response.text();
-          console.log(chalk.blue(`📥 API Response Status: ${response.status}`));
-          console.log(chalk.gray(`📥 API Response Body: ${responseText}`));
+        const responseText = await response.text();
+        console.log(chalk.blue(`📥 API Response Status: ${response.status}`));
 
-          if (response.ok) {
-            dashboardSpinner.succeed(chalk.green('✅ Dashboard submission successful!'));
-            console.log(chalk.green(`🎉 Data should now appear at: https://decharge-scout.vercel.app/agentone`));
-          } else {
-            dashboardSpinner.warn(chalk.yellow(`⚠️  Dashboard API returned: ${response.status}`));
-            console.log(chalk.yellow(`Response: ${responseText}`));
-          }
-        } catch (error) {
-          // Silent fail for dashboard - it's optional
-          console.log(chalk.red(`❌ Dashboard API error: ${error.message}`));
-          console.log(chalk.gray(`Stack: ${error.stack}`));
+        if (response.ok) {
+          dashboardSpinner.succeed(chalk.green('✅ Dashboard submission successful!'));
+          console.log(chalk.green(`🎉 Data should now appear at: https://decharge-scout.vercel.app/agentone`));
+          console.log(chalk.gray(`Response: ${responseText}`));
+        } else {
+          dashboardSpinner.warn(chalk.yellow(`⚠️  Dashboard API returned: ${response.status}`));
+          console.log(chalk.yellow(`Response: ${responseText}`));
         }
-      } else {
-        console.log(chalk.yellow(`\n⚠️  DASHBOARD_API_URL not set - skipping dashboard submission`));
-        console.log(chalk.gray(`   To enable: Set DASHBOARD_API_URL in .env file`));
+      } catch (error) {
+        console.log(chalk.red(`❌ Dashboard submission failed: ${error.message}`));
+        console.log(chalk.gray(`This won't affect your oracle submission or points`));
       }
 
       // Award points
