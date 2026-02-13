@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * DeCharge Scout - Energy Grid Data Scout CLI
+ * Global Energy Scout - Intelligent Energy Price Forecasting CLI
+ * Powered by real-time weather data and smart simulation
  *
  * Main entry point for the CLI application that scouts energy grid data,
  * performs optimizations, and submits results to Solana blockchain.
@@ -32,12 +33,14 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
 // Import modules
 import { startWalletServer, openWalletConnection, waitForWalletConnection, getConnectedWallet } from './src/wallet-server.js';
 import { setConnectedWallet, getBalance, checkBalance, mockStake, refundStake } from './src/browser-wallet.js';
-import { fetchEnergyData, fetchElectricityMapsData, fetchEnergyDataSmart } from './src/energy-data.js';
+import { getWeatherForLocation } from './src/weather-data.js';
+import { generateSmartPricing, getPricingInsights, getRegionalPricing } from './src/smart-pricing.js';
 import { findCheapestWindow, calculateSavings } from './src/optimizer.js';
 import { submitToOracle } from './src/oracle.js';
 import { initializePoints, awardPoints, getPoints, savePoints } from './src/points.js';
 import { getLocation } from './src/geolocation.js';
 import { purchasePremiumData } from './src/x402.js';
+import { hasBeenAskedForAlpha, markAskedForAlpha, parseAlphaContribution, saveAlphaContribution, calculateAlphaBonus, getAlphaInsights } from './src/local-alpha.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -104,47 +107,19 @@ STAKE_AMOUNT=0.01
     }
   }
 
-  // Check for energy data API keys
-  const hasEIA = process.env.EIA_API_KEY && process.env.EIA_API_KEY !== 'your_eia_api_key_here';
-  const hasElectricityMaps = process.env.ELECTRICITY_MAPS_API_KEY && process.env.ELECTRICITY_MAPS_API_KEY !== 'your_electricity_maps_api_key_here';
-
-  if (!hasEIA && !hasElectricityMaps) {
-    console.log(chalk.yellow('\n⚠️  No energy data API keys configured'));
-    console.log(chalk.blue('\n📝 Choose an API based on your location:\n'));
-    console.log(chalk.cyan('  1. EIA API (FREE, US-only)'));
-    console.log(chalk.gray('     - Best for: United States locations'));
-    console.log(chalk.gray('     - Get key: https://www.eia.gov/opendata/register.php\n'));
-    console.log(chalk.cyan('  2. Electricity Maps (PAID, GLOBAL)'));
-    console.log(chalk.gray('     - Best for: International locations (India, EU, Australia, etc.)'));
-    console.log(chalk.gray('     - Get key: https://www.electricitymaps.com/\n'));
-    console.log(chalk.gray('  Press Enter to skip and use mock data (for testing)\n'));
-
-    const answer = await question('Enter API key (or press Enter to skip): ');
-
-    if (answer.trim()) {
-      // Determine which API key based on length/format
-      const keyType = answer.length > 30 ? 'EIA_API_KEY' : 'ELECTRICITY_MAPS_API_KEY';
-
-      // Update .env file
-      let envContent = readFileSync(envPath, 'utf-8');
-      envContent = envContent.replace(new RegExp(`${keyType}=.*`, 'g'), `${keyType}=${answer.trim()}`);
-      writeFileSync(envPath, envContent);
-
-      // Update process.env
-      process.env[keyType] = answer.trim();
-
-      console.log(chalk.green(`✓ ${keyType} saved to .env`));
-    } else {
-      console.log(chalk.yellow('⚠️  Running without API key (will use mock data)'));
-    }
-  }
+  // Info: No API keys needed for weather-based simulation!
+  console.log(chalk.green('\n✅ Using FREE weather-based simulation (no API keys required!)'));
+  console.log(chalk.gray('   • Real-time weather data from Open-Meteo'));
+  console.log(chalk.gray('   • Smart pricing based on temperature, wind, solar radiation'));
+  console.log(chalk.gray('   • Regional patterns for accurate predictions\n'));
 }
 
 /**
  * Main CLI function
  */
 async function main(options) {
-  console.log(chalk.cyan.bold('\n🔋 DeCharge Scout - Energy Grid Data Scout\n'));
+  console.log(chalk.cyan.bold('\n🌍 Global Energy Scout - Intelligent Price Forecasting\n'));
+  console.log(chalk.gray('   Powered by real-time weather data & smart simulation'));
 
   try {
     // Auto-configure environment
@@ -278,20 +253,31 @@ async function runQueryCycle(wallet, agentName, location, options) {
       console.log(chalk.cyan.bold(`🔍 Run #${totalRuns} - ${new Date().toLocaleString()}`));
       console.log(chalk.cyan(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`));
 
-      // Fetch energy data using smart routing (tries FREE APIs first!)
-      const dataSpinner = ora('Fetching energy grid data...').start();
-      let energyData;
+      // Fetch weather data and generate smart pricing simulation
+      const weatherSpinner = ora('Fetching real-time weather forecast...').start();
+      let weatherData, energyData, countryCode;
 
       try {
-        // Smart routing: tries free APIs first based on location!
-        energyData = await fetchEnergyDataSmart(location);
-        const source = energyData[0]?.source || 'Unknown';
-        const isFree = source.includes('FREE') || source.includes('Mock');
-        const freeLabel = isFree ? '(FREE!)' : '';
-        dataSpinner.succeed(chalk.green(`✓ Fetched ${energyData.length} data points from ${source} ${freeLabel}`));
+        // Get real weather forecast from Open-Meteo (FREE!)
+        weatherData = await getWeatherForLocation(location);
+        countryCode = weatherData.location.country || 'DEFAULT';
+        weatherSpinner.succeed(chalk.green(`✓ Fetched ${weatherData.forecast.length}h weather forecast (FREE!)`));
+
+        // Generate intelligent pricing based on weather + regional patterns
+        const pricingSpinner = ora('Simulating energy grid pricing...').start();
+        energyData = generateSmartPricing(weatherData, countryCode);
+        pricingSpinner.succeed(chalk.green(`✓ Generated ${energyData.length} hours of smart pricing data`));
+
+        // Show pricing insights
+        const insights = getPricingInsights(energyData, countryCode);
+        console.log(chalk.blue(`\n💡 Smart Simulation Insights:`));
+        console.log(chalk.gray(`   Region: ${insights.region}`));
+        console.log(chalk.gray(`   Price range: $${insights.minPrice}-$${insights.maxPrice}/kWh (${insights.priceRange}% variation)`));
+        console.log(chalk.gray(`   Savings potential: ${insights.savingsPotential}% by timing your charge`));
+
       } catch (error) {
-        dataSpinner.fail(chalk.red('Failed to fetch energy data'));
-        throw new Error(`Unable to fetch energy data: ${error.message}`);
+        weatherSpinner.fail(chalk.red('Failed to fetch weather data'));
+        throw new Error(`Unable to generate pricing simulation: ${error.message}`);
       }
 
       // Run optimization
@@ -300,11 +286,30 @@ async function runQueryCycle(wallet, agentName, location, options) {
       const savings = calculateSavings(energyData, cheapestWindow);
       optSpinner.succeed(chalk.green('Optimization complete'));
 
-      // Display results
+      // Display results with intelligent insights
       console.log(chalk.green.bold('\n✨ Optimization Results:'));
       console.log(chalk.white(`   Cheapest charge window: ${cheapestWindow.timeWindow}`));
       console.log(chalk.white(`   Price: $${cheapestWindow.price.toFixed(4)}/kWh`));
       console.log(chalk.white(`   Savings: ${savings.toFixed(1)}%`));
+
+      // Show why this time is cheap (weather-based reasons)
+      const cheapestHourData = energyData.find(d => d.hour === cheapestWindow.hour);
+      if (cheapestHourData && cheapestHourData.reasons) {
+        console.log(chalk.blue('\n🧠 Why this time is optimal:'));
+        cheapestHourData.reasons.forEach(reason => {
+          console.log(chalk.gray(`   • ${reason}`));
+        });
+
+        // Show weather conditions
+        if (cheapestHourData.weather) {
+          console.log(chalk.blue('\n🌤️  Weather conditions at optimal time:'));
+          console.log(chalk.gray(`   Temperature: ${cheapestHourData.weather.temperature.toFixed(1)}°C`));
+          console.log(chalk.gray(`   Wind: ${cheapestHourData.weather.windSpeed.toFixed(1)} m/s`));
+          if (cheapestHourData.hour >= 6 && cheapestHourData.hour <= 18) {
+            console.log(chalk.gray(`   Solar: ${cheapestHourData.weather.solarRadiation.toFixed(0)} W/m²`));
+          }
+        }
+      }
 
       // Prepare submission data
       const submissionData = {
@@ -372,6 +377,45 @@ async function runQueryCycle(wallet, agentName, location, options) {
 
       console.log(chalk.magenta(`\n⭐ Earned ${totalPointsEarned} points! (${basePoints} base${bonusPoints > 0 ? ` + ${bonusPoints} bonus` : ''})`));
       console.log(chalk.magenta(`⭐ Total Points: ${currentPoints}`));
+
+      // Local Alpha Contribution (ask once after first run)
+      if (totalRuns === 1 && !hasBeenAskedForAlpha()) {
+        console.log(chalk.cyan('\n💡 Local Alpha Contribution'));
+        console.log(chalk.gray('   Help improve the simulation by sharing your local knowledge!'));
+        console.log(chalk.gray('   Example: "7-9PM peak in Lagos" or "1-5AM cheap in Berlin"'));
+        console.log(chalk.gray('   Get bonus points for contributing!\n'));
+
+        const alphaInput = await question(chalk.blue('Share local peak times (or press Enter to skip): '));
+
+        if (alphaInput.trim()) {
+          const parsed = parseAlphaContribution(alphaInput, location);
+          if (parsed) {
+            const contribution = saveAlphaContribution(parsed, agentName, location);
+            const alphaBonus = calculateAlphaBonus(parsed);
+
+            awardPoints(wallet, alphaBonus);
+            console.log(chalk.green(`\n✅ Thanks for contributing! Earned ${alphaBonus} bonus points!`));
+            console.log(chalk.gray(`   Contribution: ${parsed.type} hours ${parsed.startHour}-${parsed.endHour} in ${parsed.location}`));
+          } else {
+            console.log(chalk.yellow('⚠️  Could not parse contribution. Try format: "7-9PM in Lagos"'));
+          }
+        }
+
+        markAskedForAlpha();
+      }
+
+      // Show alpha insights if available
+      if (totalRuns === 1) {
+        const alphaInsights = getAlphaInsights(location);
+        if (alphaInsights && alphaInsights.contributions > 0) {
+          console.log(chalk.cyan(`\n🌍 Community Knowledge for ${location}:`));
+          console.log(chalk.gray(`   ${alphaInsights.contributions} local contribution(s)`));
+          if (alphaInsights.commonPeakHours.length > 0) {
+            const topPeaks = alphaInsights.commonPeakHours.map(p => `${p.hour}:00`).join(', ');
+            console.log(chalk.gray(`   Most reported peak hours: ${topPeaks}`));
+          }
+        }
+      }
 
       // Premium upgrade option
       if (options.premium && totalRuns % 3 === 0) {

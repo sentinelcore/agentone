@@ -1,6 +1,8 @@
-# DeCharge Scout
+# 🌍 Global Energy Scout
 
-AI-powered energy grid data scout with Solana blockchain integration. This CLI tool scouts public energy grid data, performs optimizations to find the cheapest EV charging windows, and submits anonymized results to a mock DeCharge oracle on Solana.
+**Weather-powered intelligent energy price forecasting with Solana blockchain integration.**
+
+This CLI tool uses **real-time weather data** to simulate energy grid pricing globally, helping you find the cheapest EV charging windows. No expensive APIs needed - completely FREE weather-based simulation that works worldwide!
 
 ## 🚀 Quick Install
 
@@ -14,27 +16,47 @@ Then run: `decharge-scout`
 
 [See more installation options →](ONE_COMMAND_INSTALL.md)
 
-## Features
+## ✨ Features
 
-- **Real-time Energy Data**: Fetches live energy pricing and demand data from EIA and Electricity Maps APIs
-- **Smart Optimization**: Finds the cheapest charging windows in the next 24 hours
-- **Blockchain Integration**: Submits results to Solana devnet with anti-spam staking
-- **Points System**: Earn points for successful submissions and good optimizations
-- **Location Tracking**: Auto-detects location via IP for global dashboard visualization
-- **Premium Features**: x402 micropayments for enhanced forecast data
-- **Dashboard Ready**: Structured data output for global visualization
+### 🌤️ **Weather-Powered Simulation** (NEW!)
+- **FREE** real-time weather data from Open-Meteo API (no key required!)
+- Simulates energy pricing based on:
+  - 🌡️ **Temperature** (AC/heating demand)
+  - 💨 **Wind speed** (renewable energy availability)
+  - ☀️ **Solar radiation** (solar energy generation)
+  - 🌙 **Time-of-day** patterns (peak/off-peak)
+- **50+ regional pricing models** (US, EU, IN, BR, JP, AU, etc.)
+- Intelligent insights explaining **why** certain times are cheaper
+
+### 🧠 **Smart Optimization**
+- Finds the cheapest 1-hour EV charging window in next 24 hours
+- Shows weather conditions at optimal time
+- Calculates potential savings (%)
+- Regional peak/off-peak pattern matching
+
+### 🌍 **Local Alpha Contribution**
+- Share your local grid knowledge (e.g., "7-9PM peak in Lagos")
+- Earn bonus points for contributing
+- Community-driven peak time database
+
+### ⛓️ **Blockchain Integration**
+- Submits results to Solana devnet with anti-spam staking
+- Points system for successful submissions
+- x402 micropayments for premium features (optional)
+
+### 🗺️ **Global Coverage**
+- Works **anywhere in the world**
+- Auto-detects location via IP
+- Custom location override supported
+- Dashboard-ready structured output
 
 ## Prerequisites
 
 - Node.js v20 or higher
-- A Solana wallet keypair file (JSON format)
-- **Energy Data API Key** (choose FREE option based on your location):
-  - 🇺🇸 **EIA API** (FREE, US-only): https://www.eia.gov/opendata/register.php
-  - 🇪🇺 **ENTSO-E** (FREE, Europe): https://transparency.entsoe.eu/
-  - 🇬🇧 **UK Carbon Intensity** (FREE, no key needed!): Works automatically for UK
-  - 🌍 **Electricity Maps** (PAID, Global): https://www.electricitymaps.com/ (only if you need paid features)
-  - 📊 **Mock Data** (FREE, testing): Press Enter to skip API setup - works everywhere!
-- At least 0.02 SOL in your devnet wallet for staking + fees
+- **NO API KEYS REQUIRED!** 🎉
+  - Uses FREE Open-Meteo weather API (no registration needed)
+  - Works globally without any paid subscriptions
+- At least 0.02 SOL in your devnet wallet for staking + fees (auto-airdropped in setup)
 
 ## Installation
 
