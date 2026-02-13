@@ -19,18 +19,23 @@ import crypto from 'crypto';
  */
 export async function submitToOracle(wallet, submissionData) {
   try {
+    console.log(`[DEBUG] submitToOracle called with wallet type: ${typeof wallet}, value: ${wallet}`);
+
     const connection = getConnection();
 
     // Handle both wallet object and wallet address string
     let publicKey;
     if (typeof wallet === 'string') {
       // wallet is a base58 address string
+      console.log(`[DEBUG] Converting string address to PublicKey: ${wallet}`);
       publicKey = new PublicKey(wallet);
+      console.log(`[DEBUG] PublicKey created successfully: ${publicKey ? publicKey.toBase58() : 'UNDEFINED'}`);
     } else if (wallet?.publicKey) {
       // wallet is a Keypair or wallet object
       publicKey = wallet.publicKey;
+      console.log(`[DEBUG] Using wallet.publicKey: ${publicKey ? publicKey.toBase58() : 'UNDEFINED'}`);
     } else {
-      throw new Error('Invalid wallet parameter: expected string address or wallet object');
+      throw new Error(`Invalid wallet parameter: expected string address or wallet object, got ${typeof wallet}`);
     }
 
     // Check wallet balance first
