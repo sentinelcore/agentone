@@ -6,12 +6,14 @@
  */
 
 import express from 'express';
-import { WebSocketServer } from 'ws';
+import WebSocket from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import open from 'open';
 import chalk from 'chalk';
+
+const { WebSocketServer } = WebSocket;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
