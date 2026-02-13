@@ -373,8 +373,9 @@ async function runQueryCycle(wallet, agentName, location, options) {
       let energyData;
 
       try {
-        energyData = await fetchEnergyData();
-        dataSpinner.succeed(chalk.green(`Fetched ${energyData.length} data points from EIA (ERCOT)`));
+        energyData = await fetchEnergyData(location);
+        const gridRegion = energyData[0]?.source?.split('-')[1] || 'Unknown';
+        dataSpinner.succeed(chalk.green(`Fetched ${energyData.length} data points from ${energyData[0]?.source || 'EIA'}`));
       } catch (error) {
         dataSpinner.warn(chalk.yellow(`EIA API failed, trying Electricity Maps...`));
 

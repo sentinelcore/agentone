@@ -13,14 +13,47 @@ const EIA_API_KEY = process.env.EIA_API_KEY;
 const EIA_BASE_URL = 'https://api.eia.gov/v2';
 
 /**
- * Fetch energy data from EIA API (ERCOT)
+ * Map location to EIA grid region codes
  */
-export async function fetchEnergyData() {
+function getGridRegionForLocation(location) {
+  const locationLower = location.toLowerCase();
+
+  // Map states/regions to grid operators
+  if (locationLower.includes('texas') || locationLower.includes('tx') || locationLower.includes('dallas') || locationLower.includes('houston') || locationLower.includes('austin')) {
+    return 'ERCT'; // ERCOT (Texas)
+  } else if (locationLower.includes('california') || locationLower.includes('ca')) {
+    return 'CISO'; // California ISO
+  } else if (locationLower.includes('new york') || locationLower.includes('ny')) {
+    return 'NYIS'; // New York ISO
+  } else if (locationLower.includes('new england') || locationLower.includes('massachusetts') || locationLower.includes('ma')) {
+    return 'ISNE'; // ISO New England
+  } else if (locationLower.includes('pjm') || locationLower.includes('pennsylvania') || locationLower.includes('pa')) {
+    return 'PJM'; // PJM Interconnection
+  } else if (locationLower.includes('miso') || locationLower.includes('midwest')) {
+    return 'MISO'; // Midcontinent ISO
+  }
+
+  // Default to ERCOT if unknown
+  return 'ERCT';
+}
+
+/**
+ * Fetch energy data from EIA API
+ */
+export async function fetchEnergyData(location = 'Texas, USA') {
   if (!EIA_API_KEY || EIA_API_KEY === 'your_eia_api_key_here' || EIA_API_KEY.length < 20) {
     console.warn('⚠️  EIA_API_KEY not configured or invalid');
     console.warn('   Get a free key: https://www.eia.gov/opendata/register.php');
     throw new Error('EIA_API_KEY not configured');
   }
+
+  // Debug logging (show first 6 and last 4 chars of API key)
+  const keyPreview = `${EIA_API_KEY.substring(0, 6)}...${EIA_API_KEY.substring(EIA_API_KEY.length - 4)}`;
+  console.log(`📡 Using EIA API key: ${keyPreview}`);
+
+  // Determine grid region from location
+  const gridRegion = getGridRegionForLocation(location);
+  console.log(`🗺️  Location: ${location} → Grid Region: ${gridRegion}`);
 
   try {
     // Calculate time range (last 24 hours to next 24 hours for forecast)
@@ -29,18 +62,20 @@ export async function fetchEnergyData() {
     const startDate = yesterday.toISOString().split('T')[0] + 'T00';
     const endDate = now.toISOString().split('T')[0] + 'T23';
 
-    // EIA API endpoint for ERCOT real-time data
+    // EIA API endpoint for regional real-time data
     const url = `${EIA_BASE_URL}/electricity/rto/region-data/data/?` +
       `api_key=${EIA_API_KEY}` +
       `&frequency=hourly` +
       `&data[0]=value` +
-      `&facets[respondent][]=ERCT` +
+      `&facets[respondent][]=${gridRegion}` +
       `&facets[type][]=D` + // Demand
       `&start=${startDate}` +
       `&end=${endDate}` +
       `&sort[0][column]=period` +
       `&sort[0][direction]=desc` +
       `&length=48`;
+
+    console.log(`🔗 EIA API URL: ${url.replace(EIA_API_KEY, keyPreview)}`);
 
     const response = await fetch(url, {
       headers: {
@@ -74,7 +109,7 @@ export async function fetchEnergyData() {
         hour: new Date(item.period).getHours(),
         demand: demand,
         price: Math.max(0.03, Math.min(0.15, price)), // Clamp between 3-15 cents
-        source: 'EIA-ERCOT'
+        source: `EIA-${gridRegion}`
       };
     });
 
