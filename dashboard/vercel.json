@@ -11,6 +11,10 @@
       "dest": "/api/stats.js"
     },
     {
+      "src": "/api/agentone/fleet-submit",
+      "dest": "/api/agentone/fleet-submit.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/public/index.html"
     }

@@ -65,3 +65,39 @@ FROM agent_submissions
 WHERE created_at > NOW() - INTERVAL '24 hours'
 GROUP BY DATE_TRUNC('hour', created_at)
 ORDER BY hour DESC;
+
+-- Table: fleet_submissions
+-- Stores fleet optimization submissions
+CREATE TABLE IF NOT EXISTS fleet_submissions (
+  id SERIAL PRIMARY KEY,
+  agent_name VARCHAR(255) NOT NULL,
+  wallet VARCHAR(255),
+  location VARCHAR(255) NOT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  fleet_size INTEGER NOT NULL,
+  total_distance_km INTEGER NOT NULL,
+  total_cost_usd DECIMAL(10, 2) NOT NULL,
+  savings_percent INTEGER NOT NULL,
+  co2_saved_kg INTEGER NOT NULL,
+  duration_hours INTEGER NOT NULL,
+  route_geojson JSONB,
+  stops JSONB,
+  simulation_basis VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for fleet queries
+CREATE INDEX idx_fleet_created_at ON fleet_submissions(created_at DESC);
+CREATE INDEX idx_fleet_agent ON fleet_submissions(agent_name);
+CREATE INDEX idx_fleet_location ON fleet_submissions(location);
+
+-- View: Fleet stats (last 24h)
+CREATE OR REPLACE VIEW fleet_stats_daily AS
+SELECT
+  COUNT(*) as total_fleets,
+  SUM(fleet_size) as total_vehicles,
+  SUM(total_distance_km) as total_distance,
+  AVG(savings_percent) as avg_savings,
+  SUM(co2_saved_kg) as total_co2_saved
+FROM fleet_submissions
+WHERE created_at > NOW() - INTERVAL '24 hours';
