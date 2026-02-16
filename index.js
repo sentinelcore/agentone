@@ -511,7 +511,7 @@ async function runQueryCycle(wallet, agentName, location, options) {
       // Submit to DeCharge Scout dashboard
       try {
         const dashboardSpinner = ora('Submitting to DeCharge Scout dashboard...').start();
-        const apiUrl = 'https://decharge-scout.vercel.app/api/submit';
+        const apiUrl = process.env.DASHBOARD_API_URL || 'https://decharge-scout.vercel.app/api/submit';
 
         console.log(chalk.blue(`\n🌐 Dashboard API URL: ${apiUrl}`));
         console.log(chalk.gray(`📤 Submitting data...`));
