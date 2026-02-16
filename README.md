@@ -34,6 +34,14 @@ Then run: `decharge-scout`
 - Calculates potential savings (%)
 - Regional peak/off-peak pattern matching
 
+### 🚛 **Virtual Fleet Optimizer** (NEW!)
+- Optimize EV fleet charging across real driving routes
+- FREE geocoding (Nominatim) and routing (OSRM)
+- Identifies optimal charging stops every ~300km
+- Multi-vehicle cost analysis with weather-based simulation
+- CO₂ savings calculation
+- Earns 5-10 points per fleet optimization
+
 ### 🌍 **Local Alpha Contribution**
 - Share your local grid knowledge (e.g., "7-9PM peak in Lagos")
 - Earn bonus points for contributing
@@ -133,6 +141,39 @@ The CLI will automatically:
 - Prompt for EIA API key if missing
 - Auto-detect your location
 
+### Fleet Optimizer (NEW!)
+
+Optimize EV fleet charging across real routes:
+
+```bash
+decharge-scout fleet --from="New York" --to="Boston" --evs=10 --agent-name="MyFleetBot"
+```
+
+**What it does:**
+- Geocodes your start/end cities (FREE Nominatim API)
+- Calculates real driving route (FREE OSRM API)
+- Analyzes weather along the route for optimal charging windows
+- Identifies charging stops every ~300km at lowest-price times
+- Calculates total cost, savings %, and CO₂ impact
+- Submits to Solana blockchain and AgentOne dashboard
+
+**Cost:** 0.005 SOL one-time fleet creation fee
+**Rewards:** 5-10 points per optimization (bonus for >25% savings)
+
+**Examples:**
+
+```bash
+# Single vehicle, short route
+decharge-scout fleet --from="San Francisco" --to="Los Angeles" --evs=1
+
+# Large fleet, long route
+decharge-scout fleet --from="New York" --to="Miami" --evs=50 --agent-name="EastCoastFleet"
+
+# International routes
+decharge-scout fleet --from="Berlin" --to="Paris" --evs=20
+decharge-scout fleet --from="Delhi" --to="Mumbai" --evs=15
+```
+
 ### With Custom Options
 
 ```bash
@@ -156,6 +197,9 @@ decharge-scout --premium
 ```bash
 decharge-scout --help
 
+Commands:
+  fleet [options]           Optimize EV fleet charging across a route
+
 Options:
   -w, --wallet <path>       Path to Solana wallet JSON keypair file (default: ./wallet.json)
   -a, --agent-name <name>   Custom agent name (default: auto-generated)
@@ -163,6 +207,12 @@ Options:
   -p, --premium            Enable premium features (x402 micropayments)
   -h, --help               Display help for command
   -V, --version            Output the version number
+
+Fleet Options:
+  --from <city>             Starting city (required)
+  --to <city>               Destination city (required)
+  --evs <number>            Number of electric vehicles (default: 1)
+  -a, --agent-name <name>   Custom agent name (default: auto-generated)
 ```
 
 ## How It Works
@@ -255,6 +305,9 @@ decharge-scout/
 │   ├── oracle.js           # Solana oracle submission
 │   ├── points.js           # Points tracking system
 │   ├── geolocation.js      # IP-based location detection
+│   ├── fleet.js            # Fleet optimization module (NEW!)
+│   ├── weather-data.js     # Weather forecasting
+│   ├── smart-pricing.js    # Pricing simulation engine
 │   └── x402.js             # x402 micropayment handling
 ```
 

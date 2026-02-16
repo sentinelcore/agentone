@@ -41,6 +41,7 @@ import { initializePoints, awardPoints, getPoints, savePoints } from './src/poin
 import { getLocation } from './src/geolocation.js';
 import { purchasePremiumData } from './src/x402.js';
 import { parseAlphaContribution, saveAlphaContribution, calculateAlphaBonus, getAlphaInsights, verifyContribution, getInformationSources } from './src/local-alpha.js';
+import { runFleetOptimization } from './src/fleet.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -618,17 +619,118 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Fleet optimization command handler
+ */
+async function fleetCommand(options) {
+  console.log(chalk.cyan.bold('\n🚛 Virtual Fleet Optimizer\n'));
+
+  try {
+    // Auto-configure environment
+    await ensureEnvironment();
+
+    // Start wallet server
+    console.log(chalk.blue('🌐 Starting browser wallet connection...'));
+    const server = await startWalletServer();
+
+    if (!server) {
+      console.log(chalk.red('❌ Failed to start wallet server'));
+      process.exit(1);
+    }
+
+    // Open browser for wallet connection
+    await openWalletConnection();
+
+    // Wait for wallet connection
+    const walletSpinner = ora('Waiting for wallet connection in browser...').start();
+    const walletAddress = await waitForWalletConnection();
+    walletSpinner.succeed(chalk.green(`✓ Wallet connected: ${walletAddress}`));
+
+    // Set connected wallet
+    setConnectedWallet(walletAddress);
+
+    // Check wallet balance
+    const balanceSpinner = ora('Checking wallet balance...').start();
+    const balance = await getBalance();
+    balanceSpinner.succeed(chalk.green(`💰 Wallet Balance: ${balance.toFixed(4)} SOL`));
+
+    // Verify sufficient balance for fleet creation fee (0.005 SOL + fees)
+    const FLEET_FEE = 0.005;
+    try {
+      await checkBalance(FLEET_FEE + 0.001);
+    } catch (error) {
+      console.log(chalk.red(`\n❌ ${error.message}`));
+      console.log(chalk.yellow(`\nFleet creation requires ${FLEET_FEE} SOL + fees`));
+      console.log(chalk.yellow(`Please fund your wallet and try again:`));
+      console.log(chalk.blue(`https://faucet.solana.com/`));
+      console.log(chalk.gray(`Wallet: ${walletAddress}\n`));
+      process.exit(1);
+    }
+
+    // Set agent name (use provided or generate)
+    const agentName = options.agentName || generateAgentName();
+
+    // Initialize points system
+    initializePoints(walletAddress);
+
+    // Validate required options
+    if (!options.from || !options.to) {
+      console.log(chalk.red('\n❌ Missing required parameters: --from and --to'));
+      console.log(chalk.yellow('\nUsage:'));
+      console.log(chalk.gray('  decharge-scout fleet --from="New York" --to="Boston" --evs=10 --agent-name="MyFleet"'));
+      console.log(chalk.gray('\nExample:'));
+      console.log(chalk.gray('  decharge-scout fleet --from="San Francisco" --to="Los Angeles" --evs=5\n'));
+      process.exit(1);
+    }
+
+    // Default EVs to 1 if not provided
+    const evs = parseInt(options.evs) || 1;
+
+    if (evs < 1 || evs > 1000) {
+      console.log(chalk.red('\n❌ Invalid number of EVs. Must be between 1 and 1000\n'));
+      process.exit(1);
+    }
+
+    // Run fleet optimization
+    await runFleetOptimization({
+      agentName,
+      from: options.from,
+      to: options.to,
+      evs
+    });
+
+    rl.close();
+    process.exit(0);
+
+  } catch (error) {
+    console.error(chalk.red(`\n❌ Error: ${error.message}`));
+    console.error(chalk.gray(error.stack));
+    rl.close();
+    process.exit(1);
+  }
+}
+
 // CLI Setup
 const program = new Command();
 
 program
   .name('decharge-scout')
   .description('AI-powered energy grid data scout with Solana integration')
-  .version('1.0.0')
+  .version('0.3.0')
   .option('-w, --wallet <path>', 'Path to Solana wallet JSON keypair file (default: ./wallet.json)')
   .option('-a, --agent-name <name>', 'Custom agent name (default: auto-generated)')
   .option('-l, --location <location>', 'Manual location override (default: auto-detect via IP)')
   .option('-p, --premium', 'Enable premium features (x402 micropayments)')
   .action(main);
+
+// Add fleet subcommand
+program
+  .command('fleet')
+  .description('Optimize EV fleet charging across a route')
+  .requiredOption('--from <city>', 'Starting city (e.g., "New York")')
+  .requiredOption('--to <city>', 'Destination city (e.g., "Boston")')
+  .option('--evs <number>', 'Number of electric vehicles in fleet', '1')
+  .option('-a, --agent-name <name>', 'Custom agent name (default: auto-generated)')
+  .action(fleetCommand);
 
 program.parse();
