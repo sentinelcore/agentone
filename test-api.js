@@ -10,8 +10,8 @@
 import fetch from 'node-fetch';
 import chalk from 'chalk';
 
-const DASHBOARD_API_URL = 'https://decharge-scout.vercel.app/agentone/api/submit';
-const STATS_API_URL = 'https://decharge-scout.vercel.app/agentone/api/stats';
+const DASHBOARD_API_URL = 'https://decharge-scout.vercel.app/api/submit';
+const STATS_API_URL = 'https://decharge-scout.vercel.app/api/stats';
 
 // Sample test data
 const testData = {
