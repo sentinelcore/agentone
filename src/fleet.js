@@ -388,6 +388,8 @@ export async function runFleetOptimization(options) {
       const dashboardSpinner = ora('Submitting to AgentOne dashboard...').start();
       const apiUrl = process.env.DASHBOARD_FLEET_API_URL || 'https://decharge-scout.vercel.app/agentone/api/fleet-submit';
 
+      console.log(chalk.gray(`   POST ${apiUrl}`));
+
       const dashboardPayload = {
         ...submissionPayload,
         wallet: walletAddress
