@@ -404,7 +404,9 @@ export async function runFleetOptimization(options) {
         console.log(chalk.cyan('\n🗺️  Your fleet optimization has been added as a new layer on the AgentOne global map!'));
         console.log(chalk.blue('   View at: https://decharge-scout.vercel.app/agentone\n'));
       } else {
+        const errorBody = await response.text();
         dashboardSpinner.warn(chalk.yellow(`⚠️  Dashboard API returned: ${response.status}`));
+        console.log(chalk.red(`   Error details: ${errorBody}`));
       }
     } catch (error) {
       console.log(chalk.yellow(`⚠️  Dashboard submission failed: ${error.message}`));
