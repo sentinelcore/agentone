@@ -123,7 +123,26 @@ export async function submitToOracle(wallet, submissionData) {
  * Anonymize submission data
  */
 function anonymizeData(data) {
-  // Create anonymized version
+  // Check if this is a fleet submission or regular submission
+  if (data.type === 'fleet') {
+    // Fleet submission - different structure
+    return {
+      agent_id: hashString(data.agent_name),
+      location_region: generalizeLocation(data.location),
+      timestamp: data.timestamp,
+      type: 'fleet',
+      fleet_size: data.fleet_size,
+      summary: {
+        ...data.summary,
+        // Round values to reduce precision
+        total_cost_usd: parseFloat(data.summary.total_cost_usd.toFixed(2)),
+        savings_percent: Math.round(data.summary.savings_percent)
+      },
+      stops_count: data.stops?.length || 0
+    };
+  }
+
+  // Regular scout submission
   const anonymized = {
     agent_id: hashString(data.agent_name), // Hash the agent name
     location_region: generalizeLocation(data.location), // Generalize location

@@ -137,10 +137,38 @@ const KNOWN_CITIES = {
 };
 
 /**
+ * Get weather data for coordinates directly
+ * Used by fleet module for intermediate route points
+ */
+export async function getWeatherForCoordinates(latitude, longitude) {
+  // Get weather forecast directly without geocoding
+  const forecast = await fetchWeatherForecast(latitude, longitude, 'auto');
+
+  return {
+    location: {
+      latitude,
+      longitude,
+      name: `${latitude.toFixed(2)},${longitude.toFixed(2)}`,
+      country: 'ROUTE',
+      timezone: 'auto'
+    },
+    forecast
+  };
+}
+
+/**
  * Get weather data for a location
  * Throws error if geocoding fails - caller should handle user interaction
  */
 export async function getWeatherForLocation(location) {
+  // Check if location is already in coordinate format (lat,lon)
+  const coordMatch = location.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+  if (coordMatch) {
+    const lat = parseFloat(coordMatch[1]);
+    const lon = parseFloat(coordMatch[2]);
+    return getWeatherForCoordinates(lat, lon);
+  }
+
   // Try geocoding - throw error if fails
   const coords = await getCoordinatesFromLocation(location);
   console.log(`📍 Location: ${coords.name}, ${coords.country} (${coords.latitude}, ${coords.longitude})`);
