@@ -31,38 +31,31 @@ const FLEET_TREASURY_PUBKEY = process.env.FLEET_TREASURY_ADDRESS ||
   'FLEETTreasuryPubkey11111111111111111111111111';
 
 /**
- * Reverse geocode coordinates to a country code using Nominatim
- * Used to get the actual regional rate for each route segment midpoint
+ * Reverse geocode coordinates to a country code using BigDataCloud
+ * Free, no API key needed, higher rate limits than Nominatim
  */
 async function reverseGeocodeCountry(lat, lon) {
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=3`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'decharge-scout-fleet/1.0' }
-    });
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+    const response = await fetch(url);
     if (!response.ok) return null;
     const data = await response.json();
-    const code = data.address?.country_code?.toUpperCase();
-    return code || null;
+    return data.countryCode || null;
   } catch {
     return null;
   }
 }
 
 /**
- * Geocode a city name to coordinates using Nominatim (OpenStreetMap)
- * Free, no API key needed, works globally
+ * Geocode a city name to coordinates using Open-Meteo geocoding API
+ * Free, no API key needed, no strict rate limits
  */
 async function geocodeCity(cityName) {
   try {
-    const encodedCity = encodeURIComponent(cityName);
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodedCity}&format=json&limit=1`;
+    const encoded = encodeURIComponent(cityName);
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encoded}&count=1&language=en&format=json`;
 
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'decharge-scout-fleet/1.0'
-      }
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`Geocoding failed: ${response.status}`);
@@ -70,16 +63,18 @@ async function geocodeCity(cityName) {
 
     const data = await response.json();
 
-    if (!data || data.length === 0) {
+    if (!data.results || data.results.length === 0) {
       throw new Error(`City "${cityName}" not found`);
     }
 
-    const result = data[0];
+    const r = data.results[0];
+    const parts = [r.name, r.admin1, r.country].filter(Boolean);
+
     return {
-      city: result.display_name.split(',')[0],
-      lat: parseFloat(result.lat),
-      lon: parseFloat(result.lon),
-      display_name: result.display_name
+      city: r.name,
+      lat: r.latitude,
+      lon: r.longitude,
+      display_name: parts.join(', ')
     };
   } catch (error) {
     throw new Error(`Geocoding error: ${error.message}`);
