@@ -31,6 +31,25 @@ const FLEET_TREASURY_PUBKEY = process.env.FLEET_TREASURY_ADDRESS ||
   'FLEETTreasuryPubkey11111111111111111111111111';
 
 /**
+ * Reverse geocode coordinates to a country code using Nominatim
+ * Used to get the actual regional rate for each route segment midpoint
+ */
+async function reverseGeocodeCountry(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=3`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'decharge-scout-fleet/1.0' }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const code = data.address?.country_code?.toUpperCase();
+    return code || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Geocode a city name to coordinates using Nominatim (OpenStreetMap)
  * Free, no API key needed, works globally
  */
@@ -142,7 +161,10 @@ async function simulateSegmentCharging(segment, fleetSize) {
 
     // Get weather forecast for this location
     const weatherData = await getWeatherForLocation(location);
-    const countryCode = weatherData.location.country || 'US';
+
+    // Reverse geocode to get actual country code for accurate regional pricing
+    // (coordinate-based weather lookups return 'ROUTE', not a real country code)
+    const countryCode = await reverseGeocodeCountry(segment.midpoint.lat, segment.midpoint.lon) || 'US';
 
     // Generate pricing simulation
     const energyData = generateSmartPricing(weatherData, countryCode);
