@@ -11,46 +11,46 @@
 
 /**
  * Regional Base Pricing Map (USD/kWh)
- * Based on real-world average electricity prices
+ * Commercial EV charging station prices ($/kWh) — DC fast charging rates
  */
 const REGIONAL_BASE_PRICES = {
   // North America
-  US: { base: 0.14, currency: 'USD', name: 'United States' },
-  CA: { base: 0.12, currency: 'CAD', name: 'Canada' },
-  MX: { base: 0.09, currency: 'MXN', name: 'Mexico' },
+  US: { base: 0.35, currency: 'USD', name: 'United States' },
+  CA: { base: 0.30, currency: 'CAD', name: 'Canada' },
+  MX: { base: 0.22, currency: 'MXN', name: 'Mexico' },
 
   // Europe
-  DE: { base: 0.32, currency: 'EUR', name: 'Germany' },
-  FR: { base: 0.19, currency: 'EUR', name: 'France' },
-  GB: { base: 0.28, currency: 'GBP', name: 'United Kingdom' },
-  ES: { base: 0.24, currency: 'EUR', name: 'Spain' },
-  IT: { base: 0.26, currency: 'EUR', name: 'Italy' },
-  PL: { base: 0.16, currency: 'EUR', name: 'Poland' },
-  NL: { base: 0.27, currency: 'EUR', name: 'Netherlands' },
+  DE: { base: 0.65, currency: 'EUR', name: 'Germany' },
+  FR: { base: 0.45, currency: 'EUR', name: 'France' },
+  GB: { base: 0.60, currency: 'GBP', name: 'United Kingdom' },
+  ES: { base: 0.50, currency: 'EUR', name: 'Spain' },
+  IT: { base: 0.55, currency: 'EUR', name: 'Italy' },
+  PL: { base: 0.38, currency: 'EUR', name: 'Poland' },
+  NL: { base: 0.58, currency: 'EUR', name: 'Netherlands' },
 
   // Asia
-  IN: { base: 0.08, currency: 'INR', name: 'India' },
-  CN: { base: 0.08, currency: 'CNY', name: 'China' },
-  JP: { base: 0.26, currency: 'JPY', name: 'Japan' },
-  KR: { base: 0.10, currency: 'KRW', name: 'South Korea' },
-  SG: { base: 0.19, currency: 'SGD', name: 'Singapore' },
+  IN: { base: 0.18, currency: 'INR', name: 'India' },
+  CN: { base: 0.20, currency: 'CNY', name: 'China' },
+  JP: { base: 0.55, currency: 'JPY', name: 'Japan' },
+  KR: { base: 0.28, currency: 'KRW', name: 'South Korea' },
+  SG: { base: 0.42, currency: 'SGD', name: 'Singapore' },
 
   // South America
-  BR: { base: 0.11, currency: 'BRL', name: 'Brazil' },
-  AR: { base: 0.06, currency: 'ARS', name: 'Argentina' },
-  CL: { base: 0.14, currency: 'CLP', name: 'Chile' },
+  BR: { base: 0.25, currency: 'BRL', name: 'Brazil' },
+  AR: { base: 0.18, currency: 'ARS', name: 'Argentina' },
+  CL: { base: 0.30, currency: 'CLP', name: 'Chile' },
 
   // Oceania
-  AU: { base: 0.21, currency: 'AUD', name: 'Australia' },
-  NZ: { base: 0.18, currency: 'NZD', name: 'New Zealand' },
+  AU: { base: 0.45, currency: 'AUD', name: 'Australia' },
+  NZ: { base: 0.40, currency: 'NZD', name: 'New Zealand' },
 
   // Africa
-  ZA: { base: 0.09, currency: 'ZAR', name: 'South Africa' },
-  NG: { base: 0.05, currency: 'NGN', name: 'Nigeria' },
-  KE: { base: 0.12, currency: 'KES', name: 'Kenya' },
+  ZA: { base: 0.22, currency: 'ZAR', name: 'South Africa' },
+  NG: { base: 0.15, currency: 'NGN', name: 'Nigeria' },
+  KE: { base: 0.28, currency: 'KES', name: 'Kenya' },
 
   // Default
-  DEFAULT: { base: 0.12, currency: 'USD', name: 'Global Average' }
+  DEFAULT: { base: 0.33, currency: 'USD', name: 'Global Average' }
 };
 
 /**
